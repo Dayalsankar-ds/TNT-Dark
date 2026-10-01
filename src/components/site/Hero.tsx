@@ -17,6 +17,16 @@
  * 2.25x the payload on top of the quality bump, which is a separate,
  * heavier tradeoff than "look less compressed" calls for.
  *
+ * LIGHTER + SMOOTHER (2026-10-01, on request — "reduce the quality ... in
+ * reasonable size. I want smooth movement"): now public/video/frames-v8, 289
+ * frames at 1024px / WebP q60, 10MB (down from frames-v7's 39MB). Every
+ * other v7 frame was kept: playback was already running at 110fps, faster
+ * than a 60Hz display refreshes, so roughly half of v7's frames were never
+ * actually painted — dropping them and halving both FPS constants keeps the
+ * on-screen timing identical while halving download and decode work. The
+ * preload also now waits for each frame's `decode()`, so playback starts
+ * with every frame already decoded instead of decoding on the swap.
+ *
  * FULLY AUTOMATED, NOT SCROLL-DRIVEN (on request — "I don't want have user
  * interaction while playing. Every thing automated from first frame to last
  * frame. User can experience only one time. After that they need to reload
@@ -49,7 +59,7 @@
  * there's nothing for a re-render to accomplish (same pattern
  * EquipmentGuide.tsx's `reducedMotionRef` uses for its own autoplay gate).
  *
- * `ready` becomes true via `requestAnimationFrame`/image `onload` callbacks,
+ * `ready` becomes true via `requestAnimationFrame`/image `decode()` callbacks,
  * never synchronously inside an effect body — `react-hooks/set-state-in-
  * effect` flags the latter (a same-tick setState cascades an extra render),
  * and deferring by one frame is invisible here regardless.
@@ -127,19 +137,20 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getLenis } from "@/components/SmoothScroll";
 import { CHROME_H } from "@/components/site/chrome";
 
-const FRAME_DIR = "/video/frames-v7";
-const FRAME_COUNT = 578;
-/** First index of clip 2 in the merged sequence (clip 1 is 00000–00264). */
-const CLIP_SPLIT = 265;
+const FRAME_DIR = "/video/frames-v8";
+const FRAME_COUNT = 289;
+/** First index of clip 2 in the merged sequence (clip 1 is 00000–00132;
+ *  v7's 00265 boundary, halved by the every-other-frame thinning). */
+const CLIP_SPLIT = 133;
 /** Clip 1's playback rate (frames 00000–00264). Raised 40 → 110 (2026-10-01,
  *  "increase the speed of the first clip too, I want full speed on both
  *  clip") — now equal to clip 2's rate, i.e. uniformly fast rather than
  *  clip 1 being the slower of the two. */
-const CLIP1_FPS = 110;
+const CLIP1_FPS = 55; // 110 on v7 — halved with the frame count, same speed on screen
 /** Clip 2's playback rate (frames 00265–00577). Raised 24 → 40 → 70 → 110
  *  across three earlier requests, then matched by CLIP1_FPS above so both
  *  clips now play at the same (fast) rate. */
-const CLIP2_FPS = 110;
+const CLIP2_FPS = 55; // 110 on v7 — halved with the frame count, same speed on screen
 /** Never actually displayed — see AUTO-SCROLL note above. */
 const LAST_VISIBLE_FRAME = FRAME_COUNT - 2;
 
@@ -231,18 +242,15 @@ export default function Hero() {
         settled += 1;
         if (settled === FRAME_COUNT) setReady(true);
       };
-      img.onload = done;
-      img.onerror = done; // a missing frame must not deadlock the preload
       img.src = framePath(i);
+      // decode() resolves once the frame is downloaded AND decoded; rejects on
+      // a missing/corrupt frame, which must not deadlock the preload either.
+      img.decode().then(done, done);
       images[i] = img;
     }
     return () => {
       cancelled = true;
-      for (const img of images) {
-        img.onload = null;
-        img.onerror = null;
-        img.src = "";
-      }
+      for (const img of images) img.src = "";
     };
   }, []);
 
