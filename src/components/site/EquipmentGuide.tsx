@@ -137,7 +137,7 @@ export default function EquipmentGuide() {
   const selectType = useCallback((i: number) => setActiveType(i), []);
 
   return (
-    <section id="fleet-guide" className="bg-tnt-gray bg-tnt-slate text-white">
+    <section id="fleet-guide" className="bg-tnt-slate text-white">
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
         {/* TWO-SIDE LAYOUT (2026-09-18, on request: "divide that section in
             two, A side and B side — A side is left side which needs to
@@ -234,13 +234,13 @@ export default function EquipmentGuide() {
                     <Icon
                       name={t.icon}
                       className={`h-8 w-8 shrink-0 ${
-                        isActive ? "text-tnt-amber" : "text-black/40 text-white/40"
+                        isActive ? "text-tnt-amber" : "text-white/40"
                       }`}
                       strokeWidth={1.5}
                     />
                     <span
                       className={`font-body text-base font-semibold ${
-                        isActive ? "text-black text-white" : "text-black/60 text-white/60"
+                        isActive ? "text-white" : "text-white/60"
                       }`}
                     >
                       {t.name}

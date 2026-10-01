@@ -93,7 +93,7 @@ const CARD_PHOTOS: CardPhoto[] = [
 
 export default function AllTerrainCranesPage() {
   return (
-    <div className="bg-white bg-black text-white">
+    <div className="bg-black text-white">
       {/* ── Hero ──────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}

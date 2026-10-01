@@ -611,7 +611,7 @@ export default function SiteNav() {
                       onClick={() => setMobileOpen(false)}
                       aria-current={current === g.label ? "page" : undefined}
                       className={`flex-1 rounded-md px-3 py-3.5 font-display text-base tracking-wide uppercase ${
-                        current === g.label ? "text-tnt-amber" : "text-black text-white"
+                        current === g.label ? "text-tnt-amber" : "text-white"
                       }`}
                     >
                       {g.label}
@@ -781,7 +781,7 @@ function FamilyFilters({
             className={`flex h-12 min-w-20 items-center justify-center rounded-sm border px-3 font-mono text-[10px] tracking-[0.08em] uppercase transition-colors ${
               none
                 ? "border-tnt-amber bg-tnt-amber text-black"
-                : "border-black/15 hover:border-tnt-amber/60 hover:text-tnt-amber border-white/15 text-white/65"
+                : "hover:border-tnt-amber/60 hover:text-tnt-amber border-white/15 text-white/65"
             }`}
           >
             All

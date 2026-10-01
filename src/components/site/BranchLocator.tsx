@@ -142,7 +142,7 @@ export default function BranchLocator({ branches }: BranchLocatorData) {
                 className={`rounded-full border px-4 py-2 font-body text-sm font-semibold transition-colors ${
                   on
                     ? "border-tnt-amber bg-tnt-amber text-black"
-                    : "border-black/15 border-white/20 text-white/80 hover:border-white/40 hover:text-white"
+                    : "border-white/20 text-white/80 hover:border-white/40 hover:text-white"
                 }`}
               >
                 {c.label}
@@ -208,8 +208,8 @@ export default function BranchLocator({ branches }: BranchLocatorData) {
                     aria-current={selectedId === b.id ? "true" : undefined}
                     className={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left font-body text-sm transition-colors focus-visible:ring-2 focus-visible:ring-tnt-amber focus-visible:outline-none ${
                       selectedId === b.id
-                        ? "bg-black/10 bg-white/20 text-white"
-                        : "text-black/70 text-white/80 hover:bg-white/10"
+                        ? "bg-white/20 text-white"
+                        : "text-white/80 hover:bg-white/10"
                     }`}
                   >
                     <Building2

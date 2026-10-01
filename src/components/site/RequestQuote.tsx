@@ -135,7 +135,7 @@ export default function RequestQuote() {
               className="rounded-2xl border p-6 sm:p-8 border-white/10 bg-black"
             >
               <p className="mb-5 font-body text-[13px] text-tnt-body">
-                <span aria-hidden="true" className="text-tnt-maroon text-tnt-amber">*</span>{" "}
+                <span aria-hidden="true" className="text-tnt-amber">*</span>{" "}
                 Required field
               </p>
               <div className="grid gap-5 sm:grid-cols-2">
@@ -250,7 +250,7 @@ export default function RequestQuote() {
                         className={`rounded-full border px-4 py-2 font-body text-sm font-semibold transition-colors ${
                           on
                             ? "border-tnt-amber bg-tnt-amber text-black"
-                            : "border-black/15 text-tnt-body border-white/15 hover:border-white/40 hover:text-white"
+                            : "text-tnt-body border-white/15 hover:border-white/40 hover:text-white"
                         }`}
                       >
                         {s}
