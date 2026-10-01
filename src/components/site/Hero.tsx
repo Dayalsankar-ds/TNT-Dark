@@ -3,66 +3,40 @@
 /**
  * HERO — rebuilt 2026-10-01, on request, from new footage ("First clip.mp4" +
  * "Second clip.mp4", supplied directly), after the previous hero was removed
- * entirely on 2026-09-23 (see page.tsx's own history note). Converted to a
- * 578-frame WebP sequence (public/video/frames-v7, 1280px wide) and merged by
- * continuous frame numbering (clip 1 = 00000–00264, clip 2 picks up at
- * 00265) rather than two separate sequences, so playback reads as one
- * continuous shot.
+ * entirely on 2026-09-23 (see page.tsx's own history note). The two clips
+ * are merged into one continuous shot.
  *
- * QUALITY (2026-10-01, on request — "increase the quality of this video
- * clip"): re-encoded at WebP q75 (up from the old hero pipeline's q40 this
- * first shipped with) — same 1280px width and frame count, just less
- * compression per frame. 39MB total, up from 25MB. Width wasn't raised to
- * the 1918px source resolution in the same pass — that alone would roughly
- * 2.25x the payload on top of the quality bump, which is a separate,
- * heavier tradeoff than "look less compressed" calls for.
- *
- * LIGHTER + SMOOTHER (2026-10-01, on request — "reduce the quality ... in
- * reasonable size. I want smooth movement"): now public/video/frames-v8, 289
- * frames at 1024px / WebP q60, 10MB (down from frames-v7's 39MB). Every
- * other v7 frame was kept: playback was already running at 110fps, faster
- * than a 60Hz display refreshes, so roughly half of v7's frames were never
- * actually painted — dropping them and halving both FPS constants keeps the
- * on-screen timing identical while halving download and decode work. The
- * preload also now waits for each frame's `decode()`, so playback starts
- * with every frame already decoded instead of decoding on the swap.
+ * NOW A REAL <video> (2026-10-01, on request — "there is some wait or stuck
+ * on hero section"): this first shipped as a WebP frame sequence (frames-v7:
+ * 578 frames, 39MB; then frames-v8: 289 frames, 10MB) whose `src` was swapped
+ * on an <img> every rAF tick. Two problems with that, both gone now:
+ *   1. The WAIT — nothing could play until every frame had downloaded and
+ *      decoded, so visitors sat on a black screen first.
+ *   2. The STUTTER — each swap could trigger a main-thread image decode,
+ *      dropping frames mid-play.
+ * public/video/hero.mp4 is H.264, 1280x720, 55fps, 3.8MB (encoded on-device
+ * with AVFoundation from the v7 frames, every other frame). It starts as soon
+ * as the first chunk arrives, decodes on the GPU, and `hero-poster.webp`
+ * (frame 0) shows instantly while it buffers. All the earlier playback-speed
+ * requests ("full speed on both clip" — both clips at 110 frames/sec of the
+ * original sequence) are baked into the encode itself, as is dropping the
+ * never-shown final TNT-logo card ("user no need to see last frame of second
+ * clip") — so there are no FPS constants or frame caps left in code.
  *
  * FULLY AUTOMATED, NOT SCROLL-DRIVEN (on request — "I don't want have user
  * interaction while playing. Every thing automated from first frame to last
  * frame. User can experience only one time. After that they need to reload
- * the site to experience it again"): this is NOT the old hero's
- * scroll-scrubbed pin (590vh section, frame position tied to scroll offset,
- * HeroFrameGL/WebGL, useHeroAutoScroll claiming the scroll itself). There is
- * no scroll interaction of any kind here — the section is a normal
- * single-viewport-height block, and playback is pure elapsed time: all 578
- * frames preload, then a single rAF loop steps through them at the
- * source's own 24fps (~24s total) the moment they're ready, stopping dead on
- * the last frame rather than looping. A user who reloads gets the play
- * through again from frame 0 (a fresh mount re-preloads and restarts); one
- * who doesn't reload is left looking at the final frame (the TNT logo
- * reveal) — there is no replay affordance by design, per the request above.
+ * the site to experience it again"): no scroll-scrub, no pin, no WebGL. The
+ * video plays once (no `loop`, no controls) and its `ended` event hands off
+ * to the auto-scroll below. A reload plays it again from the start.
  *
- * A single <img> tag has its `src` swapped each tick rather than a canvas —
- * every frame is already a preloaded, cache-resident Image() object by the
- * time playback starts, so each swap is a cache hit, not a network request.
- * `object-cover` handles the crop/scale, so there's no manual draw-rect math
- * the way the old canvas-based HeroFrameGL needed.
+ * REDUCED MOTION: the video is never played — the poster stays as a static
+ * image. `preload="none"` means nothing beyond the poster is downloaded
+ * until play() is called, which only happens outside reduced motion.
  *
- * REDUCED MOTION: skips the sequence entirely and shows frame 0 as a static
- * poster — no preloading of the other 577 frames, no rAF loop. No "poster
- * mode" for low-end devices/coarse pointers the way the old hero had
- * (scrub vs. poster vs. reduced): the old distinction existed because
- * scroll-scrubbing WebGL was the expensive part, and nothing here scrubs —
- * swapping a 1280px img.src 24 times a second is comfortably cheap on any
- * device this site otherwise supports. Read into a ref, not state — it only
- * ever gates which branch the mount effect takes, never what JSX renders, so
- * there's nothing for a re-render to accomplish (same pattern
- * EquipmentGuide.tsx's `reducedMotionRef` uses for its own autoplay gate).
- *
- * `ready` becomes true via `requestAnimationFrame`/image `decode()` callbacks,
- * never synchronously inside an effect body — `react-hooks/set-state-in-
- * effect` flags the latter (a same-tick setState cascades an extra render),
- * and deferring by one frame is invisible here regardless.
+ * AUTOPLAY BLOCKED (e.g. iOS Low Power Mode rejects play() even for muted
+ * video): play()'s rejection is swallowed and the poster stays up — the
+ * visitor scrolls on normally, same as reduced motion.
  *
  * FULL-BLEED UNDER THE FIXED NAV (2026-10-01, on request — "I can see dark
  * space on the top of this video clip"): this first shipped sitting inside
@@ -75,30 +49,8 @@
  * did before. `h-screen` here (not the shorter mobile-specific height this
  * used at first) matches that full-bleed placement.
  *
- * PLAYBACK SPEED, PER CLIP (2026-10-01, on request, across five rounds —
- * "increase the speed of this video" → "increase the more speed on second
- * clip only" → "still increase the speed of the second clip" → "increase
- * the speed of the first clip too, I want full speed on both clip"): the
- * first request raised a single uniform `PLAYBACK_FPS` 24 → 40. The next
- * two asked for clip 2 specifically faster than clip 1, taking it 40 → 70 →
- * 110 while clip 1 stayed at 40. The last request caught clip 1 back up to
- * match — both `CLIP1_FPS` and `CLIP2_FPS` are 110 now, i.e. uniformly
- * fast rather than clip 1 being the slow half. The split into two named
- * constants (rather than going back to one shared `PLAYBACK_FPS`) is
- * deliberate even though the values are equal right now — keeping them
- * separate is what makes "just clip 2" or "just clip 1" a one-line change
- * again if a future request asks for that split back.
- * `frameIndexForElapsed()` is the one place that piecewise timing lives;
- * CLIP_SPLIT marks where the merged sequence's numbering crosses from clip
- * 1 into clip 2 (see the merge note above).
- *
- * AUTO-SCROLL ON COMPLETION, SKIPPING THE TRUE LAST FRAME (2026-10-01, on
- * request — "auto scroll up to nav bar visible. User no need to see last
- * frame of second clip"): playback never actually shows frame 577 (the held
- * TNT-logo card) — `LAST_VISIBLE_FRAME` caps the displayed index one frame
- * short of it, and the instant elapsed time would reach the end,
- * `scrollToFamilyStrip()` fires immediately rather than holding on whatever
- * frame is showing.
+ * AUTO-SCROLL ON COMPLETION (2026-10-01, on request — "auto scroll up to nav
+ * bar visible"): the instant the video ends, `scrollToFamilyStrip()` fires.
  *
  * LANDING SPOT, BACK AND FORTH (2026-10-01, same day, three requests in a
  * row): first landed on #family (FamilyStripV2, the logo strip right under
@@ -137,40 +89,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getLenis } from "@/components/SmoothScroll";
 import { CHROME_H } from "@/components/site/chrome";
 
-const FRAME_DIR = "/video/frames-v8";
-const FRAME_COUNT = 289;
-/** First index of clip 2 in the merged sequence (clip 1 is 00000–00132;
- *  v7's 00265 boundary, halved by the every-other-frame thinning). */
-const CLIP_SPLIT = 133;
-/** Clip 1's playback rate (frames 00000–00264). Raised 40 → 110 (2026-10-01,
- *  "increase the speed of the first clip too, I want full speed on both
- *  clip") — now equal to clip 2's rate, i.e. uniformly fast rather than
- *  clip 1 being the slower of the two. */
-const CLIP1_FPS = 55; // 110 on v7 — halved with the frame count, same speed on screen
-/** Clip 2's playback rate (frames 00265–00577). Raised 24 → 40 → 70 → 110
- *  across three earlier requests, then matched by CLIP1_FPS above so both
- *  clips now play at the same (fast) rate. */
-const CLIP2_FPS = 55; // 110 on v7 — halved with the frame count, same speed on screen
-/** Never actually displayed — see AUTO-SCROLL note above. */
-const LAST_VISIBLE_FRAME = FRAME_COUNT - 2;
-
-const CLIP1_FRAME_DURATION = 1000 / CLIP1_FPS;
-const CLIP2_FRAME_DURATION = 1000 / CLIP2_FPS;
-const CLIP1_DURATION = CLIP_SPLIT * CLIP1_FRAME_DURATION;
-const CLIP2_DURATION = (FRAME_COUNT - CLIP_SPLIT) * CLIP2_FRAME_DURATION;
-const TOTAL_DURATION = CLIP1_DURATION + CLIP2_DURATION;
-
-const framePath = (n: number) => `${FRAME_DIR}/${String(n).padStart(5, "0")}.webp`;
-
-/** Elapsed ms since playback started → the frame to show, capped at
- *  LAST_VISIBLE_FRAME regardless of how far elapsed has actually gone. */
-function frameIndexForElapsed(elapsed: number): number {
-  const index =
-    elapsed < CLIP1_DURATION
-      ? Math.floor(elapsed / CLIP1_FRAME_DURATION)
-      : CLIP_SPLIT + Math.floor((elapsed - CLIP1_DURATION) / CLIP2_FRAME_DURATION);
-  return Math.min(index, LAST_VISIBLE_FRAME);
-}
+const VIDEO_SRC = "/video/hero.mp4";
+const POSTER_SRC = "/video/hero-poster.webp";
 
 /** Where #family's top rests in the viewport after landing: comfortably past
  *  the nav's reveal line (SiteNav's REVEAL_AT = CHROME_H), not balanced on it. */
@@ -210,72 +130,21 @@ function scrollToFamilyStrip(onComplete: () => void) {
 }
 
 export default function Hero() {
-  const imgRef = useRef<HTMLImageElement>(null);
-  const reducedMotionRef = useRef(false);
-  const [ready, setReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   // Flips true once the post-playback scroll has actually landed (not when it
   // starts) — see the HERO COLLAPSES note above.
   const [collapsed, setCollapsed] = useState(false);
 
-  // Preload every frame before playback starts — a mid-sequence stutter
-  // waiting on a late frame would be worse than a longer, one-time wait up
-  // front. Skipped entirely under reduced motion (frame 0 is a plain <img>,
-  // loaded the normal way) — `ready` still flips, just via a deferred rAF
-  // instead of a same-tick setState.
   useEffect(() => {
-    reducedMotionRef.current = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    if (reducedMotionRef.current) {
-      const id = requestAnimationFrame(() => setReady(true));
-      return () => cancelAnimationFrame(id);
-    }
-
-    let cancelled = false;
-    const images: HTMLImageElement[] = new Array(FRAME_COUNT);
-    let settled = 0;
-    for (let i = 0; i < FRAME_COUNT; i++) {
-      const img = new Image();
-      const done = () => {
-        if (cancelled) return;
-        settled += 1;
-        if (settled === FRAME_COUNT) setReady(true);
-      };
-      img.src = framePath(i);
-      // decode() resolves once the frame is downloaded AND decoded; rejects on
-      // a missing/corrupt frame, which must not deadlock the preload either.
-      img.decode().then(done, done);
-      images[i] = img;
-    }
-    return () => {
-      cancelled = true;
-      for (const img of images) img.src = "";
-    };
+    const video = videoRef.current;
+    if (!video) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const onEnded = () => scrollToFamilyStrip(() => setCollapsed(true));
+    video.addEventListener("ended", onEnded);
+    video.muted = true; // React doesn't reliably reflect the `muted` attribute; autoplay needs it
+    video.play().catch(() => {}); // autoplay blocked — see AUTOPLAY BLOCKED above
+    return () => video.removeEventListener("ended", onEnded);
   }, []);
-
-  // The one-time playback. Elapsed-time driven, not frame-count driven, so a
-  // dropped rAF tick shows a later frame next time rather than falling
-  // behind permanently. Ends by handing off to scrollToFamilyStrip() rather
-  // than holding on a final frame — see that function's own note above.
-  useEffect(() => {
-    if (!ready || reducedMotionRef.current) return;
-    let startTime: number | null = null;
-    let rafId: number;
-
-    const tick = (now: number) => {
-      if (startTime === null) startTime = now;
-      const elapsed = now - startTime;
-      if (imgRef.current) imgRef.current.src = framePath(frameIndexForElapsed(elapsed));
-      if (elapsed < TOTAL_DURATION) {
-        rafId = requestAnimationFrame(tick);
-      } else {
-        scrollToFamilyStrip(() => setCollapsed(true));
-      }
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [ready]);
 
   // Runs after the collapse is in the DOM but before paint: re-pin #family to
   // the exact viewport spot it landed on, so the collapse is invisible.
@@ -291,15 +160,18 @@ export default function Hero() {
       className={`relative overflow-hidden bg-black ${collapsed ? "" : "h-screen min-h-[600px]"}`}
       style={collapsed ? { height: COLLAPSED_H } : undefined}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <video
+        ref={videoRef}
         hidden={collapsed}
-        ref={imgRef}
-        src={framePath(0)}
-        alt="TNT Crane & Rigging"
-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
-          ready ? "opacity-100" : "opacity-0"
-        }`}
+        src={VIDEO_SRC}
+        poster={POSTER_SRC}
+        muted
+        playsInline
+        disablePictureInPicture
+        disableRemotePlayback
+        preload="none"
+        aria-label="TNT Crane & Rigging"
+        className="absolute inset-0 h-full w-full object-cover"
       />
     </section>
   );
