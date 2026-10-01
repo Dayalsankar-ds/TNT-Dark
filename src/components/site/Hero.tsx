@@ -109,23 +109,21 @@
  * to a plain `window.scrollTo` under reduced motion / before Lenis has
  * booted.
  *
- * THE WALL (2026-10-01, on request — "we have to remove that scroll back to
- * the hero section final frame"): this shipped without one at first ("no
- * scroll-position wall... just a one-time nudge"), which meant a wheel-up
- * right after landing could scroll back into the (frozen-looking, since
- * playback has ended) hero — exactly the resting state the auto-scroll
- * exists to get past. `passedRef`/`boundaryRef` + the scroll listener below
- * are a deliberately smaller version of the OLD hero's own wall
- * (useHeroAutoScroll.ts's `heroPassed`/`onScroll`): that one also had to
- * fight a scroll-jacked, locked, mid-flight run; this only has to stop
- * scrollY from dropping back below the landing spot AFTER playback has
- * already finished and landed — so a plain scroll listener that clamps
- * scrollY back up to the boundary is sufficient, no lock/force-complete/
- * stall-watch machinery needed. Scrolling further DOWN past the boundary is
- * completely untouched — only the hero itself becomes unreachable again.
+ * HERO COLLAPSES AFTER LANDING (2026-10-01, on request — "remove the scroll
+ * back to hero section final frame... automatically stop at TNT Crane
+ * family of companies section"): replaces THE WALL, an earlier scroll
+ * listener that clamped scrollY back down to the landing spot whenever the
+ * visitor scrolled up. That fought Lenis's inertial scroll on every wheel
+ * tick, so the frozen hero could still flash into view before the clamp
+ * caught it. Now, once the landing scroll completes, the hero itself
+ * shrinks to a COLLAPSED_H black band (hidden behind the fixed nav) and
+ * scrollY is shifted by the same amount before paint, so nothing visibly
+ * moves — #family stays exactly where it landed, but the page now starts
+ * there and there is no hero left above it to scroll back into. A reload
+ * plays the hero again from frame 0.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getLenis } from "@/components/SmoothScroll";
 import { CHROME_H } from "@/components/site/chrome";
 
@@ -163,18 +161,33 @@ function frameIndexForElapsed(elapsed: number): number {
   return Math.min(index, LAST_VISIBLE_FRAME);
 }
 
+/** Where #family's top rests in the viewport after landing: comfortably past
+ *  the nav's reveal line (SiteNav's REVEAL_AT = CHROME_H), not balanced on it. */
+const LANDING_TOP = CHROME_H - 24;
+/** The hero's height once collapsed — exactly LANDING_TOP, so at scrollY 0
+ *  #family sits where the landing scroll left it, under the fixed nav. */
+const COLLAPSED_H = LANDING_TOP;
+
+/** Instantly sets scrollY, keeping Lenis's internal position in sync. */
+function jumpTo(y: number) {
+  const lenis = getLenis();
+  if (lenis) {
+    lenis.resize();
+    lenis.scrollTo(y, { immediate: true, force: true });
+  } else {
+    window.scrollTo({ top: y });
+  }
+}
+
 /** Scrolls to #family (the Family-of-companies logo strip) — see the
  *  LANDING SPOT note above for the back-and-forth that settled here. Lenis
  *  when it's booted (the ordinary case); a plain smooth window.scrollTo as
  *  the fallback (whose completion is approximated with a timeout — no
- *  cross-browser-reliable completion event for native smooth scroll).
- *  Returns the target scrollY (or null if #family isn't on the page) so the
- *  caller can use it as THE WALL's boundary. */
-function scrollToFamilyStrip(onComplete: () => void): number | null {
+ *  cross-browser-reliable completion event for native smooth scroll). */
+function scrollToFamilyStrip(onComplete: () => void) {
   const family = document.getElementById("family");
-  if (!family) return null;
-  const margin = 24; // comfortably past the nav's reveal line, not balanced on it
-  const target = window.scrollY + family.getBoundingClientRect().top - CHROME_H + margin;
+  if (!family) return;
+  const target = window.scrollY + family.getBoundingClientRect().top - LANDING_TOP;
 
   const lenis = getLenis();
   if (lenis) {
@@ -183,19 +196,15 @@ function scrollToFamilyStrip(onComplete: () => void): number | null {
     window.scrollTo({ top: target, behavior: "smooth" });
     window.setTimeout(onComplete, 700);
   }
-  return target;
 }
 
 export default function Hero() {
   const imgRef = useRef<HTMLImageElement>(null);
   const reducedMotionRef = useRef(false);
   const [ready, setReady] = useState(false);
-  // THE WALL — see that docblock note above. `passedRef` flips true only
-  // once the post-playback scroll has actually landed (not when it starts),
-  // so the wall can't fight the very scroll that sets it up. `boundaryRef`
-  // is the scrollY scrollToFamilyStrip() landed on; null until then.
-  const passedRef = useRef(false);
-  const boundaryRef = useRef<number | null>(null);
+  // Flips true once the post-playback scroll has actually landed (not when it
+  // starts) — see the HERO COLLAPSES note above.
+  const [collapsed, setCollapsed] = useState(false);
 
   // Preload every frame before playback starts — a mid-sequence stutter
   // waiting on a late frame would be worse than a longer, one-time wait up
@@ -253,38 +262,30 @@ export default function Hero() {
       if (elapsed < TOTAL_DURATION) {
         rafId = requestAnimationFrame(tick);
       } else {
-        boundaryRef.current = scrollToFamilyStrip(() => {
-          passedRef.current = true;
-        });
+        scrollToFamilyStrip(() => setCollapsed(true));
       }
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
   }, [ready]);
 
-  // THE WALL itself — see the docblock note above. Only ever pushes scrollY
-  // UP to the boundary (a scroll attempt back into the hero); scrolling
-  // further down is left alone entirely.
-  useEffect(() => {
-    const onScroll = () => {
-      if (!passedRef.current || boundaryRef.current === null) return;
-      if (window.scrollY < boundaryRef.current - 1) {
-        const lenis = getLenis();
-        if (lenis) {
-          lenis.scrollTo(boundaryRef.current, { immediate: true, force: true });
-        } else {
-          window.scrollTo({ top: boundaryRef.current });
-        }
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  // Runs after the collapse is in the DOM but before paint: re-pin #family to
+  // the exact viewport spot it landed on, so the collapse is invisible.
+  useLayoutEffect(() => {
+    if (!collapsed) return;
+    const family = document.getElementById("family");
+    if (!family) return;
+    jumpTo(Math.max(0, window.scrollY + family.getBoundingClientRect().top - LANDING_TOP));
+  }, [collapsed]);
 
   return (
-    <section className="relative h-screen min-h-[600px] overflow-hidden bg-black">
+    <section
+      className={`relative overflow-hidden bg-black ${collapsed ? "" : "h-screen min-h-[600px]"}`}
+      style={collapsed ? { height: COLLAPSED_H } : undefined}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        hidden={collapsed}
         ref={imgRef}
         src={framePath(0)}
         alt="TNT Crane & Rigging"
