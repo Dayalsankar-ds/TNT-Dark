@@ -83,9 +83,25 @@
  * moves — #family stays exactly where it landed, but the page now starts
  * there and there is no hero left above it to scroll back into. A reload
  * plays the hero again from frame 0.
+ *
+ * TRIGGERED BY POSITION, NOT BY THE SCROLL'S onComplete (2026-10-01, on
+ * request — the scroll-back was still reachable): the collapse used to wait
+ * for the landing scroll's Lenis `onComplete`, which Lenis silently skips
+ * when the visitor's own wheel/trackpad input interrupts the programmatic
+ * scroll — and never fired at all if the visitor scrolled down past the
+ * hero themselves mid-playback. Either way the hero stayed, final frame
+ * and all. Now a gsap.ticker poll (same loop and approach SiteNav.tsx's
+ * reveal check uses) collapses the hero the moment #family's top reaches
+ * LANDING_TOP, however it got there — auto-scroll, manual scroll, or
+ * autoplay blocked and the visitor scrolled on their own. The scroll fix-up
+ * re-pins #family to wherever it was on screen at that moment (not always
+ * LANDING_TOP — a fast manual scroll can be well past it), so the collapse
+ * is still invisible. The landing scroll is also `lock`ed now, so wheel
+ * input can't fight it partway down.
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
 import { getLenis } from "@/components/SmoothScroll";
 import { CHROME_H } from "@/components/site/chrome";
 
@@ -112,47 +128,67 @@ function jumpTo(y: number) {
 
 /** Scrolls to #family (the Family-of-companies logo strip) — see the
  *  LANDING SPOT note above for the back-and-forth that settled here. Lenis
- *  when it's booted (the ordinary case); a plain smooth window.scrollTo as
- *  the fallback (whose completion is approximated with a timeout — no
- *  cross-browser-reliable completion event for native smooth scroll). */
-function scrollToFamilyStrip(onComplete: () => void) {
+ *  when it's booted (the ordinary case), locked so the visitor's own wheel
+ *  input can't interrupt it; a plain smooth window.scrollTo as the fallback.
+ *  Arrival is detected by the collapse poll in Hero(), not here. */
+function scrollToFamilyStrip() {
   const family = document.getElementById("family");
   if (!family) return;
   const target = window.scrollY + family.getBoundingClientRect().top - LANDING_TOP;
 
   const lenis = getLenis();
   if (lenis) {
-    lenis.scrollTo(target, { duration: 1.2, onComplete });
+    lenis.scrollTo(target, { duration: 1.2, lock: true });
   } else {
     window.scrollTo({ top: target, behavior: "smooth" });
-    window.setTimeout(onComplete, 700);
   }
 }
 
 export default function Hero() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  // Flips true once the post-playback scroll has actually landed (not when it
-  // starts) — see the HERO COLLAPSES note above.
+  // Flips true the moment #family reaches LANDING_TOP — see TRIGGERED BY
+  // POSITION above. `pinTopRef` is #family's on-screen top at that moment,
+  // which the layout effect below restores after the hero shrinks.
   const [collapsed, setCollapsed] = useState(false);
+  const pinTopRef = useRef(LANDING_TOP);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const onEnded = () => scrollToFamilyStrip(() => setCollapsed(true));
+    const onEnded = () => scrollToFamilyStrip();
     video.addEventListener("ended", onEnded);
     video.muted = true; // React doesn't reliably reflect the `muted` attribute; autoplay needs it
     video.play().catch(() => {}); // autoplay blocked — see AUTOPLAY BLOCKED above
     return () => video.removeEventListener("ended", onEnded);
   }, []);
 
+  // The collapse trigger — see TRIGGERED BY POSITION above. Polled on
+  // gsap.ticker rather than `scroll` events, which are unreliable under
+  // smooth scrolling; removes itself once it has fired.
+  useEffect(() => {
+    const tick = () => {
+      const family = document.getElementById("family");
+      if (!family) return;
+      const top = family.getBoundingClientRect().top;
+      if (top > LANDING_TOP + 1) return;
+      gsap.ticker.remove(tick);
+      pinTopRef.current = top;
+      videoRef.current?.pause();
+      setCollapsed(true);
+    };
+    gsap.ticker.add(tick);
+    return () => gsap.ticker.remove(tick);
+  }, []);
+
   // Runs after the collapse is in the DOM but before paint: re-pin #family to
-  // the exact viewport spot it landed on, so the collapse is invisible.
+  // the exact viewport spot it was at when the collapse fired, so nothing
+  // visibly moves.
   useLayoutEffect(() => {
     if (!collapsed) return;
     const family = document.getElementById("family");
     if (!family) return;
-    jumpTo(Math.max(0, window.scrollY + family.getBoundingClientRect().top - LANDING_TOP));
+    jumpTo(Math.max(0, window.scrollY + family.getBoundingClientRect().top - pinTopRef.current));
   }, [collapsed]);
 
   return (
