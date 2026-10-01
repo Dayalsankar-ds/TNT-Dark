@@ -1,0 +1,413 @@
+@import "tailwindcss";
+
+/* Dark-only site (2026-10-01): the Light theme and its floating toggle were
+   removed on request, so these are the only background/foreground values. */
+:root {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Hero-only palette — the existing HeroScrollExperience depends on these.
+     Do NOT repoint them; the unified site system lives in the tnt-* set below. */
+  --color-brand-gold: #fdb813;
+  --color-brand-maroon: #8b0b05;
+
+  /* ── TNT Crane & Rigging unified brand system (pixel-verified hexes) ──
+     Used by every NEW section. Kept separate from the hero tokens above so
+     restyling the site never touches the locked hero. */
+  /* ── Official TNT brand colours ──────────────────────────────────────────
+     Taken from "TNT Companies Color Palette" (brand guide, Assets/). The book
+     defines exactly five: Gold, Maroon, Black, Gray, White. Do not alter these
+     two — the guide is explicit that brand colours are never adjusted. */
+  --color-tnt-amber: #f8ae1c; /* GOLD  · PMS 7409 C · primary accent */
+  --color-tnt-maroon: #781514; /* MAROON · PMS 1815 C · contrast bands */
+  --color-tnt-steel: #6d7878; /* GRAY  · PMS Cool Gray 9 C */
+
+  /* Tints of Gold for interaction states only — not brand colours themselves.
+     Gold is already saturated, so hover lifts lighter rather than deeper. */
+  --color-tnt-amber-soft: #fbc65a; /* highlighted / featured surfaces */
+  --color-tnt-amber-vivid: #ffc24a; /* hover / active on gold */
+  /* Dark surfaces are BLACK, per the brand guide — the palette has no navy.
+     `tnt-navy` was invented (#071034) and is retired 2026-07-28; the token name
+     is kept only so 26 call sites don't have to churn. Read it as "the darkest
+     surface". Rename in a dedicated pass if it starts to mislead. */
+  --color-tnt-navy: #000000; /* BLACK · PMS Black 6 C · darkest surface */
+  /* One step up from black so the chrome still reads as two tiers (black
+     utility strip over the nav). Neutral grey — no blue cast. */
+  --color-tnt-slate: #1a1a1a; /* nav bar, dark chrome */
+  --color-tnt-gray: #eeeeee; /* alternating section backgrounds */
+  --color-tnt-sand: #eeece6; /* warm off-white band (Enerblock-style split) */
+  --color-tnt-paper: #e9eced; /* cool technical paper — light-world base of the
+                                 "Technical Paper" direction; sand is legacy */
+  --color-tnt-body: #707070; /* paragraph text */
+  --color-tnt-meta: #666666; /* labels, meta */
+
+  /* Headings/display = Impact, self-hosted from Assets/Impact.ttf (2026-07-30;
+     webfont-license coverage confirmed with the user before wiring this in).
+     Replaced the SF Pro system stack. Body = humanist sans. Loaded as an inert
+     CSS variable in layout.tsx so the hero's inherited font is unaffected. */
+  --font-display: var(--font-impact), Impact, "Arial Narrow Bold", sans-serif;
+  --font-body: var(--font-open-sans), system-ui, sans-serif;
+}
+
+/* No forced weight here: Impact ships as a single static weight (no separate
+   bold file). Forcing font-weight: 700 on it (as the old SF Pro stack needed)
+   would just make the browser fake-bold an already-heavy face — left at
+   whatever weight elements set (normal, per the localFont() config). */
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  /* Geist, inherited by the hero. New sections set their own font explicitly. */
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* ── Liquid Glass ──────────────────────────────────────────────────────────
+   Reserved strictly for the Coverage Map. True frosted panel: translucent
+   fill + real backdrop blur + hairline light border + layered depth (outer
+   shadow for lift, inner top highlight for the glass edge). */
+.glass {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 1.25rem; /* 20px */
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+}
+
+/* Graceful degradation: browsers without backdrop-filter (older mobile Safari,
+   etc.) get a solid black card with a gold border — never a broken blur. */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .glass {
+    background: #000000;
+    border: 1px solid #f8ae1c;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Frosted nav chrome — DARK-tinted glass (distinct from the map's white glass).
+   The slate tint is held at 0.7 so white nav text stays legible even where the
+   bar blurs a light section behind it. Degrades to solid slate. The mega panel
+   and mobile sheet that drop from this bar are their OWN light surface (see
+   the panel's bg-white in SiteNav.tsx) — only the bar itself is dark. */
+.glass-nav {
+  background: rgba(18, 18, 18, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .glass-nav {
+    background: #1a1a1a;
+  }
+}
+
+/* Mega-panel content swap, played when the Services location changes.
+   An ANIMATION, not a transition: transitions inside .glass-nav freeze
+   mid-flight when the scroll rAF loops starve the main thread (same reason the
+   bar's own show/hide is instant), whereas a keyframe animation still settles
+   on its final state if frames are dropped. Kept short — this is a content
+   refresh, not an entrance. */
+@keyframes nav-swap {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.nav-swap {
+  animation: nav-swap 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Story slideshow content entrance (StorySlideshow.tsx) — same fade+lift idea
+   as nav-swap above (and the same "premium" cubic-bezier), kept as its own
+   name/keyframe so the two features never couple by accident. Slower (500ms
+   vs 180ms) and travels a bit further (14px vs 6px): this is a slide's whole
+   headline/description/CTA arriving, not a quick menu refresh. Each child gets
+   its own `animation-delay` inline (the stagger) — the keyframe itself is
+   shared. */
+@keyframes story-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.story-fade-up {
+  animation: story-fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Anchor feedback for the nav's Services deep links.
+ *
+ * CoreServices is a bento GRID: several tiles share a row, so three services
+ * can resolve to one scroll position, and /services is short enough that the
+ * scroll often cannot move at all. Scroll position alone therefore can't
+ * confirm the click landed — clicking a second service looked like a dead page.
+ * This marks the requested tile instead.
+ *
+ * Outline, not border or shadow: it paints outside the box so the fixed-height
+ * `lg:h-[40rem]` grid cannot reflow, and it keeps the house "no card shadows"
+ * rule intact. Persists until the next hash, which is the point — it is the
+ * answer to "which one did I ask for?".
+ *
+ * Hooked on [data-targeted], not :target — Next's client navigation updates
+ * the URL through the History API, which never sets :target (verified: the
+ * rule matched nothing after a panel click). <TargetHighlight> sets the
+ * attribute instead.                                                          */
+.svc-tile[data-targeted] {
+  outline: 2px solid var(--color-tnt-amber);
+  outline-offset: -2px;
+}
+
+/* ---- Branch map (MapLibre) ------------------------------------------------
+ * Markers are real <button>s inside maplibre Markers, so they style with plain
+ * CSS and stay tabbable. Kept here rather than in Tailwind classes because the
+ * elements are created imperatively by the map component.                    */
+.tnt-map .maplibregl-canvas:focus {
+  outline: none;
+}
+/* MapLibre's own chrome, repainted to the palette. */
+.tnt-map .maplibregl-ctrl-group {
+  background: rgba(20, 20, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.5rem;
+  box-shadow: none;
+}
+.tnt-map .maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.tnt-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) opacity(0.75);
+}
+.tnt-map .maplibregl-ctrl-group button:hover {
+  background: rgba(245, 166, 35, 0.16);
+}
+.tnt-map .maplibregl-ctrl-group button:focus-visible {
+  outline: 2px solid var(--color-tnt-amber);
+  outline-offset: -2px;
+}
+.tnt-map .maplibregl-ctrl-attrib {
+  background: rgba(0, 0, 0, 0.6);
+  font-size: 10px;
+}
+.tnt-map .maplibregl-ctrl-attrib a {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.tnt-marker {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  /* `translate`, not `transform`: maplibre owns the marker's transform for
+     positioning, and writing to it here would fight the map on every pan. */
+  transition: opacity 240ms ease;
+  /* HIT-BOX SIZE NEVER CHANGES (2026-09-23) — see the flicker note on
+     `.tnt-marker.is-hovered` below for why. */
+}
+.tnt-marker:focus-visible {
+  outline: 2px solid #f5a623;
+  outline-offset: 2px;
+  border-radius: 9999px;
+}
+.tnt-marker__dot {
+  position: relative;
+  width: 13px;
+  height: 13px;
+  border-radius: 9999px;
+  background: #f5a623;
+  border: 1.5px solid rgba(0, 0, 0, 0.85);
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.22);
+  transition:
+    box-shadow 240ms ease,
+    background-color 240ms ease,
+    scale 240ms ease;
+  /* Purely decorative — the outer `.tnt-marker` button is the only element
+     that should ever be hit-tested. Without this, this span (or the pulse
+     ring below) can register its own mouseenter/mouseleave. */
+  pointer-events: none;
+}
+.tnt-marker__pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  opacity: 0;
+  /* FLICKER FIX (2026-09-23): the selected marker's ring grows past the
+     marker's own 34px footprint via `scale` in its infinite pulse animation
+     below. In dense clusters (Gulf Coast, Georgia, etc.) that growing ring
+     was visually overlapping neighboring markers — and since it's a real,
+     hit-testable DOM element, it intercepted THEIR mouseenter/mouseleave as
+     it expanded and contracted, making nearby markers flicker in and out of
+     their hover state with no cursor movement involved. `pointer-events:
+     none` makes it purely visual, so only each marker's own fixed-size
+     button can ever be hovered. */
+  pointer-events: none;
+}
+/* FLICKER FIX (2026-09-23): this used to `scale` the OUTER, hit-tested
+   `.tnt-marker` button itself (1.18 hovered / 1.32 selected) — a real,
+   reproducible bug: growing the very element being hovered, live, while the
+   cursor sits near its edge, was measured causing `is-hovered` to oscillate
+   on/off every ~60-75ms with the cursor barely moving (confirmed via a
+   frame-by-frame watch of the class list — position never changed, only
+   the hover class flapped). The growth now targets `.tnt-marker__dot`
+   instead, which is `pointer-events: none` — purely visual, so the
+   button's own hit-box is now a constant 34×34 in every state and can
+   never feed back into its own hover state. */
+.tnt-marker.is-hovered .tnt-marker__dot {
+  scale: 1.4;
+  box-shadow: 0 0 0 6px rgba(245, 166, 35, 0.28);
+}
+.tnt-marker.is-selected {
+  z-index: 5;
+}
+.tnt-marker.is-selected .tnt-marker__dot {
+  scale: 1.7;
+  background: #ffc24a;
+  box-shadow:
+    0 0 0 5px rgba(245, 166, 35, 0.35),
+    0 0 18px 4px rgba(245, 166, 35, 0.5);
+}
+.tnt-marker.is-selected .tnt-marker__pulse {
+  opacity: 1;
+  border: 1.5px solid rgba(245, 166, 35, 0.7);
+  animation: tnt-marker-pulse 1.8s ease-out infinite;
+}
+.tnt-marker.is-dimmed {
+  opacity: 0.16;
+  pointer-events: none;
+}
+@keyframes tnt-marker-pulse {
+  from {
+    scale: 0.45;
+    opacity: 0.75;
+  }
+  to {
+    scale: 1.15;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tnt-marker,
+  .tnt-marker__dot {
+    transition: none;
+  }
+  .tnt-marker.is-selected .tnt-marker__pulse {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* ---- Hero scroll-up cue ---------------------------------------------------
+ * The chevron shown at the end of the hero pin, where an upward wheel replays
+ * the sequence (see useHeroAutoScroll).
+ *
+ * Rise-and-fade, not a symmetric bob. The gesture it stands for is ONE
+ * directional flick upward; a bob returns to where it started every cycle and
+ * reads as "wiggle" rather than "go up". Starting slightly BELOW rest and
+ * leaving above it means every cycle travels one way only.
+ *
+ * 2.4s is deliberately slow. This sits under a finished logo reveal — the cue
+ * has to be noticeable without competing with the shot it's sitting on.
+ *
+ * Animates `translate`/`opacity` as their own properties, matching
+ * tnt-marker-pulse above, and leaves `transform` free for the wrapper's
+ * reveal drift so the two never overwrite each other.                        */
+.tnt-scroll-cue__chevron {
+  animation: tnt-scroll-cue 2.4s ease-in-out infinite;
+}
+@keyframes tnt-scroll-cue {
+  0% {
+    translate: 0 4px;
+    opacity: 0.25;
+  }
+  45% {
+    translate: 0 -2px;
+    opacity: 1;
+  }
+  100% {
+    translate: 0 -9px;
+    opacity: 0;
+  }
+}
+/* Motion off, mark on. The chevron is the only thing saying the hero can be
+   played backwards, so it must stay legible — unlike the marker pulse above,
+   which is pure decoration and is hidden outright. */
+@media (prefers-reduced-motion: reduce) {
+  .tnt-scroll-cue__chevron {
+    animation: none;
+    translate: none;
+    opacity: 1;
+  }
+}
+
+/* Fixed-chrome height as a CSS value. Must equal CHROME_H in chrome.ts plus the
+   two 1px borders (utility strip + header) — the TS constant drives JS
+   measurement, this drives layout offset. Change both together. */
+:root {
+  --chrome-h: 120px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .nav-swap {
+    animation: none;
+  }
+  .story-fade-up {
+    animation: none;
+  }
+}
+
+/* ---- Lenis smooth scroll -------------------------------------------------
+ * Required by the <SmoothScroll> provider. When Lenis is active it drives
+ * scrolling itself via rAF, so native CSS smooth-scroll must be turned off or
+ * the two fight over scroll position.
+ *
+ * The hook is `.lenis` — NOT `.lenis.lenis-smooth`. In lenis 1.3.25
+ * `lenis-smooth` is stamped only while `isScrolling === "smooth"` (see
+ * lenis.mjs `get className()`), i.e. it is transient scroll STATE, not a
+ * persistent "smoothing is on" flag. Gating on it left `scroll-behavior:
+ * smooth` live at rest — including at the moment an anchor link is clicked,
+ * which is precisely when the native animation and Lenis's rAF collide. Older
+ * Lenis stamped the class persistently, which is what this rule was written
+ * against; the class list is version-specific, `.lenis` is not.
+ *
+ * If Lenis is disabled (reduced motion / SSR / no-JS) the class is absent
+ * entirely and the native `scroll-behavior: smooth` above stays in effect,
+ * which is the intended fallback.                                            */
+.lenis {
+  scroll-behavior: auto !important;
+}
+.lenis [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
