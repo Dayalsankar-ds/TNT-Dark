@@ -73,7 +73,7 @@ const LEGAL: FooterLink[] = [
 
 export default function SiteFooter() {
   return (
-    <footer className="overflow-hidden bg-tnt-slate">
+    <footer className="overflow-hidden bg-tnt-graphite">
       {/* Oversized closing wordmark — one large statement before the link blocks.
          `max-w-7xl`, NOT the 1600px it used to carry: every other container on
          the site (including the link grid directly below) is max-w-7xl, so the

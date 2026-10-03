@@ -41,6 +41,9 @@
   /* One step up from black so the chrome still reads as two tiers (black
      utility strip over the nav). Neutral grey — no blue cast. */
   --color-tnt-slate: #1a1a1a; /* nav bar, dark chrome */
+  /* One more step up, so the footer reads as its own band below Request a
+     Quote (which uses tnt-slate). Neutral, no blue cast — same as slate. */
+  --color-tnt-graphite: #262626; /* footer */
   --color-tnt-gray: #eeeeee; /* alternating section backgrounds */
   --color-tnt-sand: #eeece6; /* warm off-white band (Enerblock-style split) */
   --color-tnt-paper: #e9eced; /* cool technical paper — light-world base of the

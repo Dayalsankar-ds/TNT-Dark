@@ -59,7 +59,7 @@ const POSTAL_PATTERN = "\\d{5}(-\\d{4})?|[A-Za-z]\\d[A-Za-z] ?\\d[A-Za-z]\\d";
 const field =
   "w-full rounded-md border px-4 py-3 font-body text-sm placeholder:text-tnt-meta focus:border-tnt-amber focus:ring-1 focus:ring-tnt-amber focus:outline-none border-white/15 bg-black text-white";
 const label =
-  "block font-body text-[11px] font-semibold tracking-[0.16em] text-tnt-meta uppercase";
+  "block font-body text-[11px] font-semibold tracking-[0.16em] text-white/80 uppercase";
 
 /** Visual required marker. aria-hidden: the input's own `required` is what
  *  assistive tech announces, so the star would only be read as "star". */
@@ -94,7 +94,7 @@ export default function RequestQuote() {
   };
 
   return (
-    <section id="quote" className="scroll-mt-32 bg-black">
+    <section id="quote" className="scroll-mt-32 bg-tnt-slate">
       <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,22rem)_1fr] lg:gap-16">
           {/* Left — statement */}
@@ -109,7 +109,7 @@ export default function RequestQuote() {
               Tell us about the lift and a TNT rep will follow up with capacity,
               availability, and pricing. Prefer to talk it through?
             </p>
-            <p className="mt-2 font-mono text-sm text-tnt-navy">
+            <p className="mt-2 font-mono text-sm text-white">
               Call 1-800-799-2505 — 24/7.
             </p>
           </div>
@@ -134,7 +134,7 @@ export default function RequestQuote() {
               onSubmit={onSubmit}
               className="rounded-2xl border p-6 sm:p-8 border-white/10 bg-black"
             >
-              <p className="mb-5 font-body text-[13px] text-tnt-body">
+              <p className="mb-5 font-body text-[13px] text-white/70">
                 <span aria-hidden="true" className="text-tnt-amber">*</span>{" "}
                 Required field
               </p>
