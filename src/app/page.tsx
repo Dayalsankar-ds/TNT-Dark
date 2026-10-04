@@ -21,7 +21,7 @@
 // on request ("we are going with Nav Version 2") — see FamilyStripV2.tsx's
 // own docblock for the fuller history.
 import Hero from "@/components/site/Hero";
-import FamilyStripV2 from "@/components/site/FamilyStripV2";
+import FamilyOfCompanies from "@/components/site/FamilyOfCompanies";
 import StatementSection from "@/components/site/StatementSection";
 import EquipmentGuide from "@/components/site/EquipmentGuide";
 import CoreServices from "@/components/site/CoreServices";
@@ -89,10 +89,11 @@ export default function Home() {
     <div id="top" className="-mt-[var(--chrome-h)] bg-black">
         <Hero />
 
-        {/* Trust, fast — TNT's own family-of-companies logos, right after
-            the hero. FamilyStripV2 only as of 2026-09-13 — see that file's
-            own docblock. */}
-        <FamilyStripV2 />
+        {/* Family of Companies — new split design (2026-10-04), replacing
+            FamilyStripV2.tsx, which is untouched on disk but unrendered.
+            Carries `id="family"`, which Hero.tsx's auto-scroll, SiteNav.tsx's
+            reveal check and the nav's /#family link all target. */}
+        <FamilyOfCompanies />
 
         {/* Manifesto + scale — Technical Paper opening statement (About Us) */}
         <StatementSection />
