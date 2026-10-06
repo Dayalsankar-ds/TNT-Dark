@@ -5,6 +5,7 @@ import "./globals.css";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import SmoothScroll from "@/components/SmoothScroll";
+import ChatWidget from "@/components/site/ChatWidget";
 
 // Geist stays the body default so the existing hero's inherited font is unchanged.
 const geistSans = Geist({
@@ -67,6 +68,9 @@ export default function RootLayout({
             run full-bleed beneath the bar. */}
         <main className="pt-[var(--chrome-h)]">{children}</main>
         <SiteFooter />
+        {/* AI site assistant — floating "Ask TNT" button, bottom-right.
+            Needs ANTHROPIC_API_KEY; see src/app/api/chat/route.ts. */}
+        <ChatWidget />
       </body>
     </html>
   );
