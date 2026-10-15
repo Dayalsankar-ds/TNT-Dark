@@ -14,19 +14,16 @@ npm run lint    # bare `eslint` — no path args, relies on eslint.config.mjs
 
 There is no test framework installed and no test script. If tests are needed, one must be chosen and added first — do not assume Jest/Vitest/Playwright is present.
 
-`npm run build` is the fastest way to typecheck, since `tsc` is configured `noEmit` and there is no separate typecheck script.
+`npm run build` is the fastest way to typecheck, since `tsc` is configured `noEmit` and there is no separate typecheck script. Running it while the dev server is up can kill the dev server (both write to `.next/`); restart the dev server afterwards if it stops responding.
 
-## Critical: git commands do not target this project
+## Git
 
-This project is **not** its own git repository. `git rev-parse --show-toplevel` from inside it returns `/Users/dayal` — the user's entire home directory is a git repo (branch `feat/react-migration`).
+This project is its own git repository: `git rev-parse --show-toplevel` returns this folder. It pushes to GitHub at `https://github.com/Dayalsankar-ds/TNT-Dark.git` (`origin`), and work lands directly on `main`, which tracks `origin/main`.
 
-Consequences:
+- Commit or push only when the user asks.
+- Stage files by explicit path rather than `git add -A` / `git add .`, so stray local files (scratch output, `.env*`) never ride along.
 
-- Any `git` command run here operates on the home-directory repo, whose working tree includes `.ssh/`, `.zsh_history`, `.claude.json`, `Documents/`, and `OneDrive`.
-- **Never run `git add -A`, `git add .`, or `git commit -a` from this directory.** It would stage private keys, shell history, and credential files.
-- `git status` here is not a signal about this project; it reports thousands of unrelated home-directory files.
-
-The user was asked about this and explicitly chose to leave both the home repo and this project's untracked state as-is. Do not "fix" it, do not run `git init` here, and do not delete `/Users/dayal/.git` without a fresh, explicit request.
+(Earlier this folder had no repo of its own and git resolved to a home-directory repo; that is no longer the case as of 2026-10-15.)
 
 ## Critical: never run `npm audit fix --force`
 
