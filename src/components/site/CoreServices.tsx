@@ -3,6 +3,16 @@
 /**
  * SECTION 5 — FULL-SCOPE CAPABILITY  (project lifecycle)
  *
+ * 2026-10-09 — NOW READS services.ts, and every card links to its detail
+ * block on the new /services page (/services#<id>). The six changed with it,
+ * on request: Heavy Haul & Transport replaces Wind Energy (now a Specialized
+ * Capability on /services), in the brief's order LIFT → RIG → MOVE → HAUL →
+ * PLAN → STORE. Blurbs are the catalog's one-liners; the unverified "8 to
+ * 1,300 tons" and "stamped … by in-house engineers" claims went with the old
+ * copy. The broken /crane-rental link (no such route existed) is gone too.
+ * Notes below that mention Wind Energy, /crane-rental or `?service=` links
+ * describe the previous version.
+ *
  * REVERTED TO THE ICON-CARD DESIGN (2026-09-23, on request — a reference
  * screenshot: "FULL-SCOPE CAPABILITY" eyebrow, "ONE PARTNER, END TO END"
  * heading, 6 plain icon cards in a 3×2 grid, solid-amber closing CTA panel).
@@ -60,55 +70,34 @@
  *
  * DARK ONLY (2026-10-01): the site-wide Light/Dark toggle was removed on
  * request, so this always renders the dark treatment — bg-black/text-white,
- * white/N utilities, amber-fill/black-glyph hover.
+ * white/N utilities, amber-fill/black-glyph hover. (Card data and links
+ * ported from TNT Light's services.ts version, 2026-10-15.)
  */
 
 import Image from "next/image";
 import Link from "next/link";
-import { Eyebrow, Icon, type IconName } from "./primitives";
+import { Eyebrow, Icon } from "./primitives";
 import Button from "./Button";
-import { slugify } from "./navigation";
 import TargetHighlight from "./TargetHighlight";
+import { SERVICES, serviceHref, type ServiceId } from "./services";
 
-type Stage = {
-  /** Journey position. Mirrors navigation.ts. */
-  index: string;
-  /** The verb — what this step DOES. Carries the sequence. */
-  stage: string;
-  /** The service name — what it's called and sold as. */
-  title: string;
-  blurb: string;
-  icon: IconName;
-  /** Dedicated page, when one exists — see the docblock. Every stage
-   *  without one falls back to the shared `?service=...#quote` link. */
-  href?: string;
+/** The verb each card carries — what that step DOES. Card content otherwise
+ *  comes straight from services.ts, the site-wide catalog. */
+const STAGE_VERB: Record<ServiceId, string> = {
+  "crane-rental": "Lift",
+  "specialized-rigging": "Rig",
+  "machinery-moving": "Move",
+  "heavy-haul-transport": "Haul",
+  "lift-planning-engineering": "Plan",
+  "industrial-storage": "Store",
 };
-
-const STAGE_ICONS: Record<string, string> = {
-  "Specialized Rigging": "/icons/hook.svg",
-  "Machinery Moving": "/icons/forklift.svg",
-  "Industrial Storage": "/icons/cart.svg",
-  "Wind Energy": "/icons/tower-crane.svg",
-  // Crane Rental and "Lift Planning & Engineering" have no dedicated icon
-  // asset — both fall through to the /icons/crane.svg default below, which
-  // (for Crane Rental at least) is the right icon anyway.
-};
-
-const STAGES: Stage[] = [
-  { index: "01", stage: "Lift", title: "Crane Rental", blurb: "Operated or bare rental — by the day, month, or project, from 8 to 1,300 tons. TNT's core service and the fleet every other capability on this page supports.", icon: "rental", href: "/crane-rental" },
-  { index: "02", stage: "Plan", title: "Lift Planning & Engineering", blurb: "Stamped lift plans, ground-bearing analysis, and crane selection — signed by in-house engineers before a single machine mobilizes.", icon: "engineering" },
-  { index: "03", stage: "Rig", title: "Specialized Rigging", blurb: "Hydraulic gantries, jack-and-slide, and precision skidding where a crane can't reach.", icon: "rigging" },
-  { index: "04", stage: "Move", title: "Machinery Moving", blurb: "SPMTs and skates for turnkey plant relocation — set, aligned, and levelled in place.", icon: "heavylift" },
-  { index: "05", stage: "Store", title: "Industrial Storage", blurb: "Secure indoor and outdoor yards with crane access between phases of work.", icon: "storage" },
-  { index: "06", stage: "Renewable", title: "Wind Energy", blurb: "Turbine erection, blade and component exchange across the wind corridor.", icon: "wind" },
-];
 
 export default function CoreServices() {
 
   return (
     <section
       id="services"
-      className={`scroll-mt-32 ${"bg-black text-white"}`}
+      className="scroll-mt-32 bg-black text-white"
     >
       {/* Marks the stage the nav's deep link asked for. Now that each stage is
           its own row the scroll also lands correctly, but the highlight still
@@ -120,7 +109,7 @@ export default function CoreServices() {
         <div className="max-w-3xl">
           <Eyebrow>Full-Scope Capability</Eyebrow>
           <h2
-            className={`mt-3 font-display text-4xl leading-[0.95] tracking-tight uppercase sm:text-5xl ${"text-white"}`}
+            className="mt-3 font-display text-4xl leading-[0.95] tracking-tight uppercase sm:text-5xl text-white"
           >
             One Partner, End to End
           </h2>
@@ -135,80 +124,68 @@ export default function CoreServices() {
             Equal heights come from the grid + `h-full` + column flex, not from
             trimming the copy. */}
         <ol className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
-          {STAGES.map((s) => (
+          {SERVICES.map((s) => (
             <li
-              key={s.index}
-              id={slugify(s.title)}
+              key={s.id}
+              id={s.id}
               className="svc-tile group relative scroll-mt-32"
             >
               {/* No shadow at any state. Depth comes from the hairline border
                   going gold, a barely-there gold wash, and a 2px lift — enough
                   to register as interactive without a drop shadow. */}
               <article
-                className={`relative flex h-full flex-col rounded-xl border p-5 transition-[translate,border-color,background-color] duration-300 ease-out group-hover:-translate-y-0.5 group-hover:border-tnt-amber group-hover:bg-tnt-amber/[0.06] focus-within:border-tnt-amber sm:p-6 ${
-                  "border-white/12 bg-white/[0.03]"
-                }`}
+                className="relative flex h-full flex-col rounded-xl border p-5 transition-[translate,border-color,background-color] duration-300 ease-out group-hover:-translate-y-0.5 group-hover:border-tnt-amber group-hover:bg-tnt-amber/[0.06] focus-within:border-tnt-amber sm:p-6 border-white/12 bg-white/[0.03]"
               >
                 <div className="flex items-start justify-between gap-3">
                   {/* Icon well */}
                   <span
-                    className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-tnt-amber/10 text-tnt-amber transition-colors duration-300 ${
-                      "group-hover:bg-tnt-amber group-hover:text-black"
-                    }`}
+                    className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-tnt-amber/10 text-tnt-amber transition-colors duration-300 group-hover:bg-tnt-amber group-hover:text-black"
                   >
                     <Image
-                      src={STAGE_ICONS[s.title] ?? "/icons/crane.svg"}
+                      src={s.glyph}
                       alt=""
                       width={24}
                       height={24}
                       unoptimized
-                      className={`h-6 w-6 object-contain transition-[filter] duration-300 [filter:brightness(0)_saturate(100%)_invert(63%)_sepia(65%)_saturate(721%)_hue-rotate(352deg)_brightness(97%)_contrast(101%)] ${
-                        "group-hover:[filter:brightness(0)_saturate(100%)]"
-                      }`}
+                      className="h-6 w-6 object-contain transition-[filter] duration-300 [filter:brightness(0)_saturate(100%)_invert(63%)_sepia(65%)_saturate(721%)_hue-rotate(352deg)_brightness(97%)_contrast(101%)] group-hover:[filter:brightness(0)_saturate(100%)]"
                     />
                   </span>
                   <span className="flex items-center gap-2 pt-1">
                     <span
-                      className={`font-mono text-[11px] tabular-nums transition-colors duration-300 group-hover:text-tnt-amber ${
-                        "text-white/30"
-                      }`}
+                      className="font-mono text-[11px] tabular-nums transition-colors duration-300 group-hover:text-tnt-amber text-white/30"
                     >
                       {s.index}
                     </span>
                     <span className="font-body text-[10px] font-bold tracking-[0.2em] text-tnt-amber uppercase">
-                      {s.stage}
+                      {STAGE_VERB[s.id]}
                     </span>
                   </span>
                 </div>
 
                 <h3
-                  className={`mt-5 font-display text-xl tracking-wide uppercase ${"text-white"}`}
+                  className="mt-5 font-display text-xl tracking-wide uppercase text-white"
                 >
-                  {s.title}
+                  {s.label}
                 </h3>
                 {/* flex-1 pushes the CTA to a common baseline across the row,
                     so blurbs of different lengths still align. */}
                 <p
-                  className={`mt-2 flex-1 font-body text-[13px] leading-relaxed ${"text-white/60"}`}
+                  className="mt-2 flex-1 font-body text-[13px] leading-relaxed text-white/60"
                 >
-                  {s.blurb}
+                  {s.short}
                 </p>
 
                 {/* Hairline separator instead of a shadow to divide the card's
                     body from its action. */}
                 <span
                   aria-hidden="true"
-                  className={`mt-5 block h-px w-full transition-colors duration-300 group-hover:bg-tnt-amber/40 ${
-                    "bg-white/10"
-                  }`}
+                  className="mt-5 block h-px w-full transition-colors duration-300 group-hover:bg-tnt-amber/40 bg-white/10"
                 />
 
                 {/* Learn more — the whole card is the hit area via the stretched
                     link, so this is the affordance, not the target. */}
                 <span
-                  className={`mt-4 flex items-center gap-2 font-body text-sm font-semibold transition-colors duration-300 group-hover:text-tnt-amber ${
-                    "text-white"
-                  }`}
+                  className="mt-4 flex items-center gap-2 font-body text-sm font-semibold transition-colors duration-300 group-hover:text-tnt-amber text-white"
                 >
                   Learn more
                   <Icon
@@ -227,11 +204,11 @@ export default function CoreServices() {
                     instead of Next's client-side route swap (measured via
                     `performance.getEntriesByType("navigation")[0].type`). */}
                 <Link
-                  href={s.href ?? `?service=${slugify(s.title)}#quote`}
+                  href={serviceHref(s)}
                   className="absolute inset-0 rounded-xl focus-visible:ring-2 focus-visible:ring-tnt-amber focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   <span className="sr-only">
-                    {s.title} — stage {s.index}, {s.stage}. Learn more.
+                    {s.label} — stage {s.index}, {STAGE_VERB[s.id]}. Learn more.
                   </span>
                 </Link>
               </article>

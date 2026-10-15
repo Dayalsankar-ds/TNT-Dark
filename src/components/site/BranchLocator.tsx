@@ -43,6 +43,7 @@ import { Search, Phone, Building2, MapPin } from "lucide-react";
 import RevealText from "./RevealText";
 import Button from "./Button";
 import type { BranchLocatorData } from "./branchLocatorData";
+import { CONFIRM_FALLBACK } from "./services";
 
 // Lazy-loaded, ssr:false: maplibre-gl is ~200KB gzipped and touches `window`
 // at import time. The section header, search panel and detail card all render
@@ -312,6 +313,13 @@ export default function BranchLocator({ branches }: BranchLocatorData) {
               <p className="mt-5 font-mono text-[11px] tracking-[0.14em] uppercase text-white/45">
                 Available Services
               </p>
+              {/* Empty = nothing confirmed for this company yet (services.ts),
+                  not "offers nothing" — say that instead of a blank list. */}
+              {selected.services.length === 0 && (
+                <p className="mt-2 font-body text-[13px] leading-relaxed text-white/60">
+                  {CONFIRM_FALLBACK}
+                </p>
+              )}
               <ul className="mt-2 space-y-1.5">
                 {selected.services.map((s) => (
                   <li

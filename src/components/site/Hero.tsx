@@ -83,6 +83,20 @@
  * (shifting the start time forward) rather than skipping ahead, so a slow
  * connection briefly pauses instead of jumping.
  *
+ * HASH ARRIVAL (2026-10-08, approved — links such as /about's "Request a
+ * Quote" → /#quote): opening the homepage with a #section used to play the
+ * video off-screen and then auto-scroll the visitor back up to #family,
+ * never reaching the section (SmoothScroll.tsx also resets every load to
+ * the top, discarding the browser's own hash jump). Now, when the URL has a
+ * hash other than #top that matches an element, the hero skips playback
+ * entirely, collapses at once, and scrolls to that element
+ * (scrollToElement.ts) — then once more after load if the visitor hasn't
+ * started scrolling. /#top — the nav's Home link — is included
+ * (2026-10-14, on request: "we no need to show the hero" when coming back
+ * from another page): it skips playback and lands on the usual post-hero
+ * view, #family under the bar. Only a plain visit (no hash) plays the
+ * video.
+ *
  * REDUCED MOTION: under `prefers-reduced-motion` neither path runs — the
  * hero rests on its first frame and nothing auto-scrolls. Because the video
  * carries `autoPlay` (see the video-path effect), it may have begun before
@@ -181,6 +195,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getLenis } from "@/components/SmoothScroll";
 import { CHROME_H } from "@/components/site/chrome";
+import { hashTarget, scrollToElement } from "@/components/site/scrollToElement";
 
 const VIDEO_SRC = "/video/hero.mp4";
 const POSTER_SRC = "/video/hero-poster.webp";
@@ -252,6 +267,9 @@ export default function Hero() {
   const [collapsed, setCollapsed] = useState(false);
   const removedRef = useRef(0);
   const finishedRef = useRef(false);
+  // HASH ARRIVAL — see that docblock note. True when the page was opened
+  // with a #section (other than #top): skip playback, collapse, jump there.
+  const hashJumpRef = useRef(false);
   const fallbackTimerRef = useRef<number | undefined>(undefined);
 
   // Shared ending for both paths: auto-scroll to #family, then collapse
@@ -282,6 +300,15 @@ export default function Hero() {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    if (window.location.hash && hashTarget()) {
+      video.pause();
+      finishedRef.current = true;
+      hashJumpRef.current = true;
+      // Deferred a frame: a same-tick setState in an effect is flagged by
+      // react-hooks/set-state-in-effect, and one frame is invisible here.
+      const id = requestAnimationFrame(() => setCollapsed(true));
+      return () => cancelAnimationFrame(id);
+    }
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       video.pause();
       video.currentTime = 0;
@@ -392,12 +419,69 @@ export default function Hero() {
     return () => cancelAnimationFrame(rafId);
   }, [framesReady, finish]);
 
+  // Home (/#top) clicked while already on the homepage: the URL usually
+  // already ends in #top, so the browser sees no change and doesn't scroll.
+  // Catch any /#top link (desktop nav, mobile menu, footer) and scroll to
+  // the top ourselves — which, once the hero has collapsed, is the usual
+  // post-hero view with #family under the bar.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a");
+      if (!a) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname !== "/" || url.hash !== "#top") return;
+      e.preventDefault();
+      history.replaceState(null, "", "/#top");
+      const lenis = getLenis();
+      if (lenis) lenis.scrollTo(0, { duration: 1 });
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+
   // The collapse's scroll compensation. Runs before paint, so the shorter
   // section and the shifted scrollY land in the same frame — no visible jump.
   // If the visitor had scrolled back up into the hero mid-flight, this clamps
   // to 0, which is the landing view anyway.
   useLayoutEffect(() => {
     if (!collapsed) return;
+    if (hashJumpRef.current) {
+      // HASH ARRIVAL: go to the requested section now, and again once the
+      // page has loaded in case images above it shifted the layout — unless
+      // the visitor has started scrolling by then.
+      let userMoved = false;
+      const stop = () => {
+        userMoved = true;
+      };
+      const go = () => {
+        if (userMoved) return;
+        getLenis()?.resize();
+        // /#top (the nav's Home link) lands on the normal post-hero view:
+        // with the hero collapsed, scrollY 0 IS the auto-scroll's landing
+        // spot (#family at LANDING_OFFSET under the bar).
+        if (window.location.hash === "#top") {
+          const lenis = getLenis();
+          if (lenis) lenis.scrollTo(0, { immediate: true, force: true });
+          else window.scrollTo({ top: 0 });
+          return;
+        }
+        const el = hashTarget();
+        if (el) scrollToElement(el);
+      };
+      go();
+      window.addEventListener("wheel", stop, { passive: true, once: true });
+      window.addEventListener("touchstart", stop, { passive: true, once: true });
+      window.addEventListener("keydown", stop, { once: true });
+      if (document.readyState !== "complete") window.addEventListener("load", go, { once: true });
+      return () => {
+        window.removeEventListener("wheel", stop);
+        window.removeEventListener("touchstart", stop);
+        window.removeEventListener("keydown", stop);
+        window.removeEventListener("load", go);
+      };
+    }
     const top = Math.max(0, window.scrollY - removedRef.current);
     const lenis = getLenis();
     if (lenis) {

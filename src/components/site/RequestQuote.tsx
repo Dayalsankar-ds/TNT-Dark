@@ -31,18 +31,17 @@ import { useState, type FormEvent } from "react";
 import { Eyebrow } from "./primitives";
 import Button from "./Button";
 import RevealText from "./RevealText";
+import { SERVICES as CATALOG } from "./services";
 
-const SERVICES = [
-  "Crane Rental",
-  "Specialized Rigging",
-  "Machinery Moving",
-  "Industrial Storage",
-  "Engineering",
-];
+// The site's service catalog (services.ts) — one list site-wide.
+const SERVICES = CATALOG.map((s) => s.label);
 
 // The six classes in the nav's Load Chart menu, so the form and the fleet
 // speak the same taxonomy. "Not sure" is a real answer — a rep will recommend.
-const CRANE_TYPES = [
+// Exported (with `field`, `label`, `Req`, `Opt` below) for /contact's
+// ContactForm, so both forms share one field style and one crane taxonomy
+// (2026-10-08). Export keywords only — nothing here renders differently.
+export const CRANE_TYPES = [
   "All-Terrain Crane",
   "Crawler Crane",
   "Hydraulic Truck Crane",
@@ -54,16 +53,16 @@ const CRANE_TYPES = [
 
 // US ZIP (12345 or 12345-6789) or Canadian postal code (A1A 1A1) — TNT
 // Canada and Eagle West quote Canadian jobsites.
-const POSTAL_PATTERN = "\\d{5}(-\\d{4})?|[A-Za-z]\\d[A-Za-z] ?\\d[A-Za-z]\\d";
+export const POSTAL_PATTERN = "\\d{5}(-\\d{4})?|[A-Za-z]\\d[A-Za-z] ?\\d[A-Za-z]\\d";
 
-const field =
+export const field =
   "w-full rounded-md border px-4 py-3 font-body text-sm placeholder:text-tnt-meta focus:border-tnt-amber focus:ring-1 focus:ring-tnt-amber focus:outline-none border-white/15 bg-black text-white";
-const label =
+export const label =
   "block font-body text-[11px] font-semibold tracking-[0.16em] text-white/80 uppercase";
 
 /** Visual required marker. aria-hidden: the input's own `required` is what
  *  assistive tech announces, so the star would only be read as "star". */
-function Req() {
+export function Req() {
   return (
     <span aria-hidden="true" className="ml-1 text-tnt-amber">
       *
@@ -72,7 +71,7 @@ function Req() {
 }
 
 /** Quiet "optional" tag for the fields a visitor may reasonably not know. */
-function Opt() {
+export function Opt() {
   return (
     <span className="ml-1 font-normal tracking-normal normal-case">(optional)</span>
   );

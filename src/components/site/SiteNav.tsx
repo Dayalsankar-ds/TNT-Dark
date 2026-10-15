@@ -100,7 +100,7 @@ export default function SiteNav() {
       : [...brands, brand];
     setBrands(next);
     const city = SERVICE_LOCATIONS.find((l) => l.id === location);
-    if (next.length && city?.region && !next.includes(city.brand)) {
+    if (next.length && city?.company && !next.includes(city.brand)) {
       setLocation("all");
     }
   };
@@ -273,7 +273,12 @@ export default function SiteNav() {
           trigger into its panel without crossing "outside". */}
       <div onMouseLeave={scheduleClose}>
         {/* h-20 = 80px; pairs with TopInfoBar's h-10 to make CHROME_H = 120. */}
-        <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* Full-width row (2026-10-08, on request — logo "to the left end with
+            decent spacing"): was centred in max-w-7xl, which left the logo
+            ~112px in at 1440px. Now edge-to-edge with a 32px gutter (40px from
+            2xl; at 1280px a 40px gutter left the links 16px short of room).
+            TopInfoBar.tsx matches so its rows stay aligned. */}
+        <nav className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8 2xl:px-10">
           {/* Wordmark — swapped back to Secondary mark, 2026-08-18 (traded
               places with FamilyStrip's first logo, which now carries Primary).
               Secondary is a DIFFERENT shape, not just a smaller version of
@@ -397,11 +402,18 @@ export default function SiteNav() {
           <div className="hidden items-center gap-5 lg:flex">
             <a
               href="tel:+18007992505"
-              className="hidden font-mono text-base font-semibold whitespace-nowrap text-white transition-colors hover:text-tnt-amber xl:block"
+              className="hidden font-mono text-base font-semibold whitespace-nowrap text-white transition-colors hover:text-tnt-amber 2xl:block"
             >
               1-800-799-2505
             </a>
-            <Button href="/#quote" variant="primary" onDark arrow={false}>
+            {/* Phone number here only from 2xl (was xl): with Careers back
+                beside Contact Us (2026-10-08) the row needs ~140px more
+                than 1280px allows, so 1280–1535px shows the number in
+                TopInfoBar instead (its link is 2xl:hidden to match). */}
+            {/* whitespace-nowrap: "Contact Us" (which replaced the shorter
+                "Careers", 2026-10-08) narrowed this rail enough to wrap the
+                label onto two lines at 1440px. */}
+            <Button href="/#quote" variant="primary" onDark arrow={false} className="whitespace-nowrap">
               Get a Quote
             </Button>
           </div>

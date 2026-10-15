@@ -37,6 +37,7 @@
  */
 
 import type { IconName } from "./primitives";
+import { COMPANIES, SERVICES, confirmedServices, serviceHref, type CompanyId } from "./services";
 
 /** Title → anchor id. Shared by the nav and by the sections it links into, so
  *  a renamed tile can never silently break its nav link. */
@@ -56,6 +57,10 @@ export type NavChild = {
   /** Right-aligned spec (tonnage, count). Mono, tabular. */
   meta?: string;
   icon?: IconName;
+  /** Catalog id (services.ts) for items the Services location filter can
+   *  narrow — matched on this, not on the href, since a dedicated page
+   *  (/services/crane-rental) carries no #id. */
+  id?: string;
 };
 
 export type NavColumn = {
@@ -97,7 +102,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { label: "Home", href: "/#top", columns: [] },
   {
     label: "About",
-    href: "/#statement",
+    href: "/about",
     columns: [
       {
         no: "01",
@@ -112,15 +117,17 @@ export const NAV_GROUPS: NavGroup[] = [
           // An /our-story route briefly lived here on 2026-08-06 and was
           // deleted the same day. This points back at the homepage's Statement
           // section, which is where "who we are" lives on a single-page site.
-          { label: "Who We Are", href: "/#statement", icon: "commercial" },
+          // Who We Are + Family of Companies point at the /about page
+          // (2026-10-08, approved); the rest stay homepage sections.
+          { label: "Who We Are", href: "/about", icon: "commercial" },
           { label: "Coverage Map", href: "/#coverage", icon: "pin" },
-          { label: "Family of Companies", href: "/#family", icon: "commercial" },
+          { label: "Family of Companies", href: "/about#family-of-companies", icon: "commercial" },
           { label: "Safety & Record", href: "/#safety", icon: "engineering" },
           // "Case Studies" (/#projects) removed 2026-09-18, on request —
           // it was a dead link: CaseStudies.tsx is unrendered on the
           // homepage (see page.tsx), so #projects doesn't exist. See
           // page.tsx's own note — the footer still links there too.
-          { label: "Contact Us", href: "/#contact", icon: "mail" },
+          { label: "Contact Us", href: "/contact", icon: "mail" },
         ],
       },
       // Dropped with their routes on 2026-08-04, none having a homepage
@@ -143,58 +150,36 @@ export const NAV_GROUPS: NavGroup[] = [
     },
   },
   {
+    // /services is a real page as of 2026-10-09 (Services Overview brief),
+    // so the trigger links there and every item deep-links to its detail
+    // block on that page. Items come from services.ts — the one catalog the
+    // homepage cards, footer, forms and branch map also read — so the panel
+    // can't drift from them. Heavy Haul & Transport is core again; Wind
+    // Energy moved to /services#specialized (see services.ts).
     label: "Services",
-    href: "/#services",
+    href: "/services",
     columns: [
       {
         no: "01",
         heading: "Capabilities",
-        items: [
-          // JOURNEY order, matching the lifecycle in CoreServices — plan, lift,
-          // rig, move, store, renewable. The panel and the section are one
-          // numbering system or neither number means anything.
-          //
-          // Heavy Haul & Transport (was 05, "Transport") removed 2026-09-11,
-          // on request — CoreServices.tsx renumbered to match, and the
-          // "heavy-haul-transport" slug was dropped from every region's list
-          // below rather than left pointing at a capability that no longer
-          // renders.
-          { index: "01", label: "Crane Rental", icon: "rental", href: `/#${slugify("Crane Rental")}` },
-          // Wind Energy's card was dropped 2026-09-22 (a 4-card design
-          // reference didn't have it, and tntcrane.com's real, current
-          // service list doesn't either) then RESTORED 2026-09-23, on
-          // request, when CoreServices.tsx reverted to its earlier 6-card
-          // icon design (see that file's own docblock — the reference for
-          // this restoration explicitly shows Wind Energy as card 06).
-          // This nav entry was left in place as a dead link through the
-          // whole 4/5-card period rather than removed, so it needed no
-          // change to work again now that its card is back.
-          { index: "02", label: "Lift Planning & Engineering", icon: "engineering", href: `/#${slugify("Lift Planning & Engineering")}` },
-          // Labels below restored to match CoreServices.tsx's own restored
-          // card titles (were shortened 2026-09-22 to match that day's
-          // photo-card redesign, e.g. "Rigging"/"Heavy Lift"/"Industrial
-          // Services" — those shorter titles are gone from the section
-          // again, so the mismatch these hardcoded hrefs existed to bridge
-          // no longer applies; slugify(label) matches CoreServices' ids
-          // directly again).
-          { index: "03", label: "Specialized Rigging", icon: "rigging", href: `/#${slugify("Specialized Rigging")}` },
-          { index: "04", label: "Machinery Moving", icon: "heavylift", href: `/#${slugify("Machinery Moving")}` },
-          { index: "05", label: "Industrial Storage", icon: "storage", href: `/#${slugify("Industrial Storage")}` },
-          { index: "06", label: "Wind Energy", icon: "wind", href: `/#${slugify("Wind Energy")}` },
-        ],
+        items: SERVICES.map((s) => ({
+          index: s.index,
+          label: s.label,
+          icon: s.icon,
+          href: serviceHref(s),
+          id: s.id,
+        })),
       },
-      // The "Industries" column (Commercial / Industrial & Energy /
-      // Infrastructure) went with /industries on 2026-08-04. Every item pointed
-      // into that route and the homepage has no industries section, so the
-      // column had nothing left to hold.
     ],
+    // "Stamped by in-house engineers" dropped 2026-10-09: the brief rules out
+    // promising engineer-stamped plans network-wide without confirmation.
     feature: {
       eyebrow: "Single Scope",
       title: "Lift plan to final set",
       blurb:
-        "Engineering, rigging, transport, and storage under one scope of work — stamped by in-house engineers before mobilization.",
-      href: "/#quote",
-      cta: "Talk to an engineer",
+        "Lifting, rigging, transport, engineering and storage, coordinated across the TNT family of companies.",
+      href: "/services",
+      cta: "Explore all services",
     },
   },
   {
@@ -243,9 +228,15 @@ export const NAV_GROUPS: NavGroup[] = [
   // Record" item and feature card already use — one real section, now
   // reachable two ways rather than a second copy of it.
   { label: "Safety Needs", href: "/#safety", columns: [] },
-  // The three inert items. Each was a real route until 2026-08-04 and has no
-  // homepage section, so there is nothing honest to point at yet — see the
-  // `href` docs on NavGroup above.
+  // Contact Us replaced the inert "Careers" item in this slot (2026-10-08,
+  // on request). Repointed the same day from the homepage's /#contact
+  // section to the dedicated /contact page, on request — which also gives
+  // it an active state there via activeGroup().
+  { label: "Contact Us", href: "/contact", columns: [] },
+  // The inert items. Each was a real route until 2026-08-04 and has no
+  // page or homepage section, so there is nothing honest to point at yet —
+  // see the `href` docs on NavGroup above. Careers was removed for Contact
+  // Us and brought back beside it the same day (2026-10-08, on request).
   { label: "Careers", href: null, columns: [] },
   { label: "News", href: null, columns: [] },
   { label: "For Sale", href: null, columns: [] },
@@ -258,29 +249,18 @@ export const NAV_GROUPS: NavGroup[] = [
 /* ==========================================================================
  * SERVICES BY LOCATION
  *
- * The Services panel carries a location selector, because "do you do wind
- * turbine work" has a different answer in Billings than in Atlanta, and a
- * national list that quietly over-promises is worse than a shorter honest one.
+ * The Services panel carries a location selector, because "do you do heavy
+ * haul" has a different answer in Billings than in Atlanta, and a national
+ * list that quietly over-promises is worse than a shorter honest one.
  *
- * Regions and brands are the site's own taxonomy — the same six that
- * AreasServed renders and that CoverageMap's branches roll up into — so the nav
- * cannot invent a market the rest of the site doesn't serve.
- *
- * ⚠ THE AVAILABILITY MAPPING BELOW IS EDITORIAL PLACEHOLDER, NOT OPS DATA.
- * Which services and industries each region actually covers has to come from
- * the business. It is deliberately one flat table so replacing it is a single
- * edit and touches no component code. Service and industry keys are the same
- * slugs the columns above build their hrefs from, so a typo surfaces as a
- * missing row rather than a broken link.
+ * Rebuilt 2026-10-09 around services.ts: availability is per OPERATING
+ * COMPANY (not per region) and comes from that file's audited table. The old
+ * region table here was editorial placeholder and included Allison Crane &
+ * Rigging, which isn't on TNT's own family list — it's gone, and the city
+ * list below is now the audited branch list (branchLocatorData.ts SEEDS),
+ * replacing cities no company site lists (Cheyenne, Savannah, Charleston,
+ * Jacksonville, Pecos, …).
  * ========================================================================== */
-
-export type RegionId =
-  | "gulf-coast"
-  | "rocky-mountain"
-  | "southeast"
-  | "northeast-permian"
-  | "northern-rockies"
-  | "western-canada";
 
 /** A city slug, or "all" for the unfiltered reset row. */
 export type LocationId = string;
@@ -289,116 +269,60 @@ export type ServiceLocation = {
   id: LocationId;
   /** What the row shows — the city, because that's what a caller knows. */
   label: string;
-  /** Which region's capability set this city inherits. null on "all". */
-  region: RegionId | null;
+  /** Operating company whose services this city inherits. null on "all". */
+  company: CompanyId | null;
   /** Operating brand. Carries the association the city name alone loses, and
    *  is the accessible name + the fallback when no logo exists. */
   brand: string;
-  /** Brand mark in public/brand. null where the kit ships no logo. */
+  /** Brand mark in public/brand. null where no distinct mark exists. */
   logo: string | null;
 };
 
-// Cities are the same set AreasServed lists, so the nav can't offer a market
-// the rest of the site doesn't claim. Ordered by market so same-brand cities
-// cluster and the logo column reads as a grouping rather than noise.
-//
-// A market is NOT the same thing as a region. Western Canada is one region for
-// capability purposes but two operating companies — Eagle West runs British
-// Columbia, Stampede/TNT Canada runs Alberta (see FamilyOfCompanies) — so it
-// splits into two entries that share a `region`. Calgary and Edmonton
-// previously carried the Eagle West mark, which was simply wrong.
-//
-// LOGO COVERAGE (brand kit, Assets/*.zip — verified against the archives):
-// TNT, Eagle West, JMS, RMS Cranes and Southway ship marks. Allison Crane &
-// Rigging and Stampede/TNT Canada ship NONE. Those two carry `logo: null` and
-// render their company name as text — the same fallback FamilyOfCompanies
-// already uses — rather than a stand-in graphic.
-const MARKETS: {
-  region: RegionId;
-  brand: string;
-  logo: string | null;
-  cities: string[];
-}[] = [
-  {
-    region: "gulf-coast",
-    brand: "TNT Crane & Rigging",
-    logo: "/brand/tnt.svg",
-    cities: [
-      "Austin, TX",
-      "Beaumont, TX",
-      "Buda, TX",
-      "Corpus Christi, TX",
-      "Dallas, TX",
-      "Edinburg, TX",
-      "Fort Worth, TX",
-      "Freeport, TX",
-      "Houston, TX",
-      "Midland, TX",
-      "Norco, LA",
-      "Oklahoma City, OK",
-      "Pampa, TX",
-      "San Antonio, TX",
-      "St James, LA",
-      "Tulsa, OK",
-    ],
-  },
-  {
-    region: "rocky-mountain",
-    brand: "RMS Cranes",
-    logo: "/brand/rms-cranes.svg",
-    cities: ["Denver, CO", "Colorado Springs, CO", "Cheyenne, WY", "Casper, WY"],
-  },
-  {
-    region: "southeast",
-    brand: "Southway Crane & Rigging",
-    logo: "/brand/southway.svg",
-    cities: ["Atlanta, GA", "Savannah, GA", "Charleston, SC", "Birmingham, AL", "Jacksonville, FL"],
-  },
-  {
-    region: "northeast-permian",
-    brand: "Allison Crane & Rigging",
-    logo: null, // MISSING from the brand kit
-    cities: ["Williamsport, PA", "Pittsburgh, PA", "Pecos, TX"],
-  },
-  {
-    region: "northern-rockies",
-    brand: "JMS Crane & Rigging",
-    logo: "/brand/jms.svg",
-    cities: ["Billings, MT", "Bozeman, MT", "Soda Springs, ID"],
-  },
-  {
-    region: "western-canada",
-    brand: "Eagle West Crane & Rigging",
-    logo: "/brand/eagle-west.svg",
-    cities: ["Vancouver, BC", "Abbotsford, BC", "Kamloops, BC"], // British Columbia
-  },
-  {
-    region: "western-canada",
-    brand: "Stampede / TNT Canada",
-    logo: null, // MISSING from the brand kit
-    cities: ["Calgary, AB", "Edmonton, AB"], // Alberta
-  },
-];
+// Same cities, same companies as the branch map (branchLocatorData.ts SEEDS)
+// — kept as labels here rather than imported, because that file imports this
+// one. Change both together.
+const MARKET_CITIES: Record<CompanyId, string[]> = {
+  "tnt-us": [
+    "Austin, TX", "Beaumont, TX", "Buda, TX", "Corpus Christi, TX", "Dallas, TX",
+    "Edinburg, TX", "Fort Worth, TX", "Freeport, TX", "Houston, TX", "Midland, TX",
+    "Norco, LA", "Oklahoma City, OK", "Pampa, TX", "San Antonio, TX", "St James, LA",
+    "Tulsa, OK",
+  ],
+  rms: [
+    "Denver, CO", "Henderson, CO", "Colorado Springs, CO", "Windsor, CO",
+    "Casper, WY", "Albuquerque, NM",
+  ],
+  southway: [
+    "Albany, GA", "Atlanta, GA", "Birmingham, AL", "Byron, GA", "Conyers, GA",
+    "Lexington, SC", "Midway, FL", "Montgomery, AL", "North Augusta, SC",
+    "Port Wentworth, GA", "Ringgold, GA", "Valdosta, GA",
+  ],
+  jms: ["Billings, MT", "Sioux Falls, SD"],
+  "eagle-west": ["Abbotsford, BC", "Chilliwack, BC", "Kamloops, BC", "Kelowna, BC", "Vancouver, BC"],
+  "tnt-canada": [
+    "Edmonton, AB", "Fort McMurray, AB", "Calgary, AB", "Lethbridge, AB",
+    "Brooks, AB", "Medicine Hat, AB",
+  ],
+};
 
 export const SERVICE_LOCATIONS: ServiceLocation[] = [
   {
     id: "all",
     label: "All Locations",
-    region: null,
+    company: null,
     brand: "US & Canada network",
     logo: null,
   },
-  ...MARKETS.flatMap((m) =>
-    m.cities.map((city) => ({
+  ...COMPANIES.flatMap((c) =>
+    MARKET_CITIES[c.id].map((city) => ({
       id: slugify(city),
       label: city,
-      region: m.region,
-      brand: m.brand,
-      logo: m.logo,
+      company: c.id,
+      brand: c.name,
+      logo: c.logo,
     })),
   ),
 ];
-
 /** Detailed location information including address, phone, email, and services */
 export type LocationDetails = {
   branch: string;
@@ -575,32 +499,14 @@ export const LOCATION_DETAILS: Record<string, LocationDetails> = {
   },
 };
 
-/** The region a location belongs to, or null for "all" / unknown ids. */
-export function regionOf(locationId: LocationId): RegionId | null {
-  return SERVICE_LOCATIONS.find((l) => l.id === locationId)?.region ?? null;
-}
-
 export type FamilyBrand = { brand: string; logo: string };
 
-/**
- * The TNT family companies that ship a usable mark, deduped and in market
- * order. Derived from MARKETS rather than hand-listed so it cannot drift from
- * the city→company mapping.
- *
- * Allison Crane & Rigging and Stampede/TNT Canada are absent because the brand
- * kit contains no logo for either — "available" is meant literally here, and a
- * stand-in graphic would misrepresent the kit.
- */
-export const FAMILY_BRANDS: FamilyBrand[] = (() => {
-  const seen = new Set<string>();
-  const out: FamilyBrand[] = [];
-  for (const m of MARKETS) {
-    if (!m.logo || seen.has(m.brand)) continue;
-    seen.add(m.brand);
-    out.push({ brand: m.brand, logo: m.logo });
-  }
-  return out;
-})();
+/** The family companies with a distinct mark, in catalog order (TNT Canada
+ *  shares TNT's, so it has none here — it's still reachable by its cities). */
+export const FAMILY_BRANDS: FamilyBrand[] = COMPANIES.filter((c) => c.logo).map((c) => ({
+  brand: c.name,
+  logo: c.logo!,
+}));
 
 export type FamilyFilter = FamilyBrand & { locationId: LocationId };
 
@@ -610,129 +516,53 @@ export const FAMILY_FILTERS: FamilyFilter[] = FAMILY_BRANDS.map((brand) => {
   return { ...brand, locationId: location?.id ?? "all" };
 });
 
-/** The operating company for one location — mark if the kit has one. */
-export function brandOf(locationId: LocationId): {
-  brand: string;
-  logo: string | null;
-} | null {
-  const loc = SERVICE_LOCATIONS.find((l) => l.id === locationId);
-  if (!loc?.region) return null;
-  return { brand: loc.brand, logo: loc.logo };
-}
-
-type LocationContent = {
-  services: string[];
-  industries: string[];
-  feature: NavFeature;
-};
-
-const LOCATION_CONTENT: Record<RegionId, LocationContent> = {
-  "gulf-coast": {
-    services: [
-      "crane-rental",
-      "specialized-rigging",
-      "machinery-moving",
-      "lift-planning-engineering",
-      "industrial-storage",
-      "wind-energy",
-    ],
-    industries: ["industrial-energy", "infrastructure", "commercial"],
-    feature: {
-      eyebrow: "Gulf Coast",
-      title: "Turnaround-ready crews",
-      blurb:
-        "Refinery and petrochemical turnarounds out of Houston, Corpus Christi, and Baton Rouge — planned months ahead, staffed around the clock.",
-      href: "/#quote",
-      cta: "Plan a turnaround",
-    },
+/**
+ * Closing card per company. Copy is limited to what aboutData.ts and
+ * services.ts can back — the old region cards made claims nothing sourced
+ * (Baton Rouge turnarounds, "self-contained crews", Allison's dispatch).
+ */
+const COMPANY_FEATURE: Record<CompanyId, NavFeature> = {
+  "tnt-us": {
+    eyebrow: "Texas · Louisiana · Oklahoma",
+    title: "Where TNT started",
+    blurb: "Sixteen branches across the Gulf Coast and the Southern Plains, with industrial storage in Buda, Houston and Dallas.",
+    href: "/services#availability",
+    cta: "See regional services",
   },
-  "rocky-mountain": {
-    services: [
-      "crane-rental",
-      "specialized-rigging",
-      "machinery-moving",
-      "lift-planning-engineering",
-      "wind-energy",
-    ],
-    industries: ["industrial-energy", "infrastructure"],
-    feature: {
-      eyebrow: "Rocky Mountain",
-      title: "High-altitude wind work",
-      blurb:
-        "RMS crews run turbine erection and component exchange across Colorado and Wyoming, with heavy haul over mountain permits.",
-      href: "/#quote",
-      cta: "Talk to RMS",
-    },
+  southway: {
+    eyebrow: "Southeast",
+    title: "Southway Crane & Rigging",
+    blurb: "Twelve branches from Ringgold to Midway, with industrial storage in Conyers, Georgia.",
+    href: "/services#availability",
+    cta: "See regional services",
   },
-  southeast: {
-    services: [
-      "crane-rental",
-      "specialized-rigging",
-      "machinery-moving",
-      "lift-planning-engineering",
-    ],
-    industries: ["commercial", "infrastructure"],
-    feature: {
-      eyebrow: "Southeast",
-      title: "Commercial build support",
-      blurb:
-        "Southway covers steel sets, HVAC placement, and long-duration site cranes from Atlanta through the Carolina and Florida coasts.",
-      href: "/#quote",
-      cta: "Talk to Southway",
-    },
+  rms: {
+    eyebrow: "Rocky Mountain",
+    title: "RMS Cranes",
+    blurb: "Colorado, Wyoming and New Mexico, including heavy-haul trucking, a dedicated wind division and tower cranes.",
+    href: "/services#availability",
+    cta: "See regional services",
   },
-  "northeast-permian": {
-    services: [
-      "crane-rental",
-      "specialized-rigging",
-      "machinery-moving",
-      "lift-planning-engineering",
-      "industrial-storage",
-    ],
-    industries: ["industrial-energy", "commercial"],
-    feature: {
-      eyebrow: "Northeast & Permian",
-      title: "Two basins, one desk",
-      blurb:
-        "Allison runs Pennsylvania industrial work and West Texas basin support on the same dispatch, with yard storage at both ends.",
-      href: "/#quote",
-      cta: "Talk to Allison",
-    },
+  jms: {
+    eyebrow: "Montana · South Dakota",
+    title: "JMS Crane & Rigging",
+    blurb: "Crane, heavy-haul and engineering services out of Billings and Sioux Falls, including bare crane rental.",
+    href: "/services#availability",
+    cta: "See regional services",
   },
-  "northern-rockies": {
-    services: [
-      "crane-rental",
-      "specialized-rigging",
-      "lift-planning-engineering",
-      "wind-energy",
-    ],
-    industries: ["industrial-energy", "infrastructure"],
-    feature: {
-      eyebrow: "Northern Rockies",
-      title: "Remote-site mobilization",
-      blurb:
-        "JMS reaches sites the highway doesn't — Montana and Idaho wind, mining, and utility work with self-contained crews.",
-      href: "/#quote",
-      cta: "Talk to JMS",
-    },
+  "tnt-canada": {
+    eyebrow: "Alberta",
+    title: "TNT Crane & Rigging Canada",
+    blurb: "Six Alberta branches, from Fort McMurray to Medicine Hat. Contact our team to confirm services for your project.",
+    href: "/contact",
+    cta: "Contact our team",
   },
-  "western-canada": {
-    services: [
-      "crane-rental",
-      "specialized-rigging",
-      "machinery-moving",
-      "lift-planning-engineering",
-      "wind-energy",
-    ],
-    industries: ["commercial", "infrastructure", "industrial-energy"],
-    feature: {
-      eyebrow: "Western Canada",
-      title: "BC and Alberta coverage",
-      blurb:
-        "Eagle West and TNT Canada cover Vancouver tower work through Calgary and Edmonton industrial, under Canadian certification.",
-      href: "/#quote",
-      cta: "Talk to TNT Canada",
-    },
+  "eagle-west": {
+    eyebrow: "British Columbia",
+    title: "Eagle West Crane & Rigging",
+    blurb: "Fraser Valley to the Interior, including rail crane services and precast concrete from Chilliwack.",
+    href: "/services#availability",
+    cta: "See regional services",
   },
 };
 
@@ -742,16 +572,16 @@ const SERVICES_GROUP = NAV_GROUPS.find((g) => g.label === "Services")!;
 /**
  * Services panel content for a location, or for a set of operating companies.
  * Returns the same shape the panel renders for any other group, so the
- * location layer stays out of the view: the component asks for columns and a
- * feature and paints them.
+ * location layer stays out of the view.
  *
  * A picked city wins over the company filter — it is the narrower answer.
- * With no city, `brands` (the multi-select logo row) filters to the UNION of
- * what those companies' regions offer: picking RMS and Southway asks "what can
- * either of you do", not "what can both". An empty `brands` means no filter.
+ * With no city, `brands` filters to the UNION of what those companies offer:
+ * picking RMS and Southway asks "what can either of you do". An empty
+ * `brands` means no filter.
  *
- * Columns that filter down to nothing are dropped rather than rendered empty —
- * a heading over a blank space reads as a loading bug.
+ * Only direct/network services are listed. When nothing is confirmed for the
+ * selection (TNT Canada today), the full list stays and the closing card says
+ * to confirm with the team — an empty panel would read as "offers nothing".
  */
 export function servicesPanelFor(
   locationId: LocationId,
@@ -761,94 +591,51 @@ export function servicesPanelFor(
   feature: NavFeature;
 } {
   const loc = SERVICE_LOCATIONS.find((l) => l.id === locationId);
-  const regions: RegionId[] = loc?.region
-    ? [loc.region]
-    : [
-        ...new Set(
-          SERVICE_LOCATIONS.filter(
-            (l) => l.region && brands.includes(l.brand),
-          ).map((l) => l.region as RegionId),
-        ),
-      ];
-  if (regions.length === 0) {
+  const companies: CompanyId[] = loc?.company
+    ? [loc.company]
+    : COMPANIES.filter((c) => brands.includes(c.name)).map((c) => c.id);
+  if (companies.length === 0) {
     return { columns: SERVICES_GROUP.columns, feature: SERVICES_GROUP.feature! };
   }
-  const services = new Set(regions.flatMap((r) => LOCATION_CONTENT[r].services));
-  const industries = new Set(
-    regions.flatMap((r) => LOCATION_CONTENT[r].industries),
-  );
-  const allow = (heading: string) =>
-    heading === "Industries" ? industries : services;
+  const allowed = new Set(companies.flatMap((c) => confirmedServices(c).map((s) => s.id as string)));
 
-  const columns = SERVICES_GROUP.columns
-    .map((col) => ({
-      ...col,
-      items: col.items.filter((item) => {
-        const slug = item.href.split("#")[1];
-        return slug ? allow(col.heading).has(slug) : true;
-      }),
-    }))
-    .filter((col) => col.items.length > 0);
+  const columns =
+    allowed.size === 0
+      ? SERVICES_GROUP.columns
+      : SERVICES_GROUP.columns
+          .map((col) => ({
+            ...col,
+            items: col.items.filter((item) => allowed.has(item.id ?? "")),
+          }))
+          .filter((col) => col.items.length > 0);
 
-  // The eyebrow names what you picked, not the region — you asked for Houston
-  // (or for RMS), so the panel should say that back to you. Region copy still
-  // carries the body, since that's the level the capability set is defined at.
-  // Several companies spanning regions have no single region story to tell,
-  // so they get the network-wide card under a count.
-  if (loc?.region) {
-    return {
-      columns,
-      feature: { ...LOCATION_CONTENT[loc.region].feature, eyebrow: loc.label },
-    };
-  }
-  if (regions.length === 1) {
+  // A picked city is named back in the eyebrow (you asked for Houston); a
+  // picked company keeps its territory eyebrow, since the card's title
+  // already names it. Several companies get the network-wide card under a
+  // count.
+  if (companies.length === 1) {
     return {
       columns,
       feature: {
-        ...LOCATION_CONTENT[regions[0]].feature,
-        eyebrow: brands.length === 1 ? brands[0] : `${brands.length} companies`,
+        ...COMPANY_FEATURE[companies[0]],
+        eyebrow: loc?.company ? loc.label : COMPANY_FEATURE[companies[0]].eyebrow,
       },
     };
   }
   return {
     columns,
-    feature: { ...SERVICES_GROUP.feature!, eyebrow: `${brands.length} companies` },
+    feature: { ...SERVICES_GROUP.feature!, eyebrow: `${companies.length} companies` },
   };
-}
-
-/**
- * Service labels available in a region, in journey order.
- *
- * The branch locator lists what each branch's operating company actually does,
- * and this is where that already lives — deriving from it means the map and the
- * mega panel can never disagree about RMS's coverage. `null` means no regional
- * restriction (TNT-operated branches carry the full scope).
- *
- * Inherits the caveat on LOCATION_CONTENT: the availability mapping is
- * editorial placeholder until the business supplies the real thing.
- */
-export function servicesForRegion(region: RegionId | null): string[] {
-  const items = SERVICES_GROUP.columns[0].items;
-  if (!region) return items.map((i) => i.label);
-  const allowed = LOCATION_CONTENT[region].services;
-  return items
-    .filter((i) => allowed.includes(i.href.split("#")[1] ?? ""))
-    .map((i) => i.label);
 }
 
 /** Routes that no longer sit at top level but must still resolve to a group so
  *  the trigger can show an active state when you land on them directly.
  *
- *  EMPTY since 2026-08-04: the site is a single page, so there is no second
- *  pathname to attribute to a group. Every entry here (/charts, /for-sale,
- *  /industries, /careers) named a route that no longer exists. Kept as the hook
- *  rather than deleted — if a real route is ever added back, this is where it
- *  reattaches to its trigger. With it empty, `activeGroup("/")` returns null and
- *  no trigger shows a current state, which is correct when every destination
- *  lives on the page you are already on. */
+ *  Empty from 2026-08-04 until /services/crane-rental (2026-10-09), the
+ *  first service with its own page — add each new /services/* page here so
+ *  the Services trigger stays lit on it. */
 const EXTRA_ROUTES: Record<string, string> = {
-  // Empty: the site is a single page, so there is no second pathname to
-  // attribute to a group. Add an entry here if a real route is ever added back.
+  "/services/crane-rental": "Services",
 };
 
 /** Which group (if any) owns the current pathname. */

@@ -30,7 +30,9 @@ export default function TopInfoBar() {
   return (
     <div className="hidden border-b border-white/10 bg-tnt-navy lg:block">
       {/* h-10 = 40px; pairs with the nav's h-20 to make CHROME_H = 120. */}
-      <div className="mx-auto flex h-10 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
+      {/* Full width with the same gutters as SiteNav's row, so the location
+          lines up under the logo and the socials over Get a Quote. */}
+      <div className="flex h-10 items-center justify-between gap-6 px-4 sm:px-6 lg:px-8 2xl:px-10">
         {/* Where we are + how to reach us */}
         <div className="flex items-center gap-7">
           <span className="flex items-center gap-2 font-mono text-[12px] tracking-wide text-white/70">
@@ -44,13 +46,13 @@ export default function TopInfoBar() {
             <Icon name="mail" className="h-4 w-4 shrink-0 text-tnt-amber" />
             info@tntcrane.com
           </a>
-          {/* Phone, `lg`-only — the inverse of the nav rail's `xl:block`
-              number (2026-09-10). The eight-item bar has no room for it at
-              `lg`, so it lands here in that band and hides again at `xl`
-              where the rail takes it back. Exactly one is ever visible. */}
+          {/* Phone, below `2xl` only — the inverse of the nav rail's
+              `2xl:block` number (2026-09-10; moved xl → 2xl 2026-10-08 when
+              Careers came back beside Contact Us and the bar ran out of room
+              at 1280px). Exactly one of the two is ever visible. */}
           <a
             href="tel:+18007992505"
-            className="flex items-center gap-2 font-mono text-[12px] tracking-wide text-white/70 transition-colors hover:text-tnt-amber xl:hidden"
+            className="flex items-center gap-2 font-mono text-[12px] tracking-wide text-white/70 transition-colors hover:text-tnt-amber 2xl:hidden"
           >
             <Icon name="payment" className="h-4 w-4 shrink-0 text-tnt-amber" />
             1-800-799-2505

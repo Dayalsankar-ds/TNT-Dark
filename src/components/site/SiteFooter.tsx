@@ -10,6 +10,7 @@
 import Link from "next/link";
 import Button from "./Button";
 import Reveal from "./Reveal";
+import { SERVICES, serviceHref } from "./services";
 
 /**
  * Every link here pointed at `#top` — eighteen of them, so the whole footer
@@ -28,10 +29,9 @@ const BLOCKS: { no: string; heading: string; links: FooterLink[] }[] = [
     no: "01",
     heading: "Services",
     links: [
-      { label: "Crane Rental", href: "/#crane-rental" },
-      { label: "Specialty Rigging", href: "/#specialized-rigging" },
-      { label: "Lift Planning & Engineering", href: "/#lift-planning-engineering" },
-      { label: "Wind Energy", href: "/#wind-energy" },
+      // The services.ts catalog, linking into /services (2026-10-09).
+      { label: "All Services", href: "/services" },
+      ...SERVICES.map((sv) => ({ label: sv.label, href: serviceHref(sv) })),
     ],
   },
   {

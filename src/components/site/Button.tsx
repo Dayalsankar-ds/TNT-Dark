@@ -79,7 +79,10 @@ export default function Button({
   const ring =
     variant === "link"
       ? "rounded-sm focus-visible:ring-2 focus-visible:ring-tnt-amber focus-visible:outline-none"
-      : "focus-visible:ring-2 focus-visible:ring-tnt-amber focus-visible:ring-offset-2 focus-visible:outline-none";
+      : `focus-visible:ring-2 focus-visible:ring-tnt-amber focus-visible:ring-offset-2 focus-visible:outline-none ${
+          // The offset gap is white by default — a white halo on dark bands.
+          onDark ? "focus-visible:ring-offset-black" : ""
+        }`;
   const cls = `group inline-flex items-center gap-2 font-body text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-out active:scale-[0.97] ${skin} ${ring} ${className}`;
 
   // Amber arrow everywhere except the amber-filled primary-on-dark button,

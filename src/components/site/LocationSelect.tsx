@@ -92,7 +92,7 @@ export default function LocationSelect({
   const brandScope = useMemo(
     () =>
       brands.length
-        ? SERVICE_LOCATIONS.filter((l) => !l.region || brands.includes(l.brand))
+        ? SERVICE_LOCATIONS.filter((l) => !l.company || brands.includes(l.brand))
         : SERVICE_LOCATIONS,
     [brands],
   );
@@ -100,7 +100,7 @@ export default function LocationSelect({
   // The trigger's second line: with no city picked, it names the company
   // filter rather than claiming the whole network.
   const scopeLine =
-    selected.region || brands.length === 0
+    selected.company || brands.length === 0
       ? selected.brand
       : brands.length === 1
         ? brands[0]
@@ -309,7 +309,7 @@ export default function LocationSelect({
                 aria-selected={isSelected}
                 // The logo is decorative (alt=""), so the brand has to reach
                 // assistive tech through the option's own name.
-                aria-label={loc.region ? `${loc.label} — ${loc.brand}` : loc.label}
+                aria-label={loc.company ? `${loc.label} — ${loc.brand}` : loc.label}
                 onMouseEnter={() => setActiveIndex(i)}
                 onMouseDown={(e) => {
                   // mousedown, not click: the list closes on blur, and blur
@@ -330,7 +330,7 @@ export default function LocationSelect({
                 </span>
                 {/* "All Locations" has no company, but still reserves the slot
                     so its row matches the rest — otherwise the list ripples. */}
-                {loc.region ? (
+                {loc.company ? (
                   <BrandMark brand={loc.brand} />
                 ) : (
                   <span aria-hidden="true" className="h-8 w-[88px] shrink-0" />

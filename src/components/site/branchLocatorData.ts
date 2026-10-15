@@ -6,12 +6,15 @@
  * into a dotted-map coordinate space, and swapping the backdrop for MapLibre
  * needed no change to the data at all.
  *
- * SERVICES come from navigation.ts via the operating brand, not a new table —
- * capability varies by operating company, and the mega panel already defines
- * it. One source, so the map and the nav can't disagree.
+ * SERVICES come from services.ts via the operating brand (2026-10-09) — the
+ * same audited table the nav panel and /services read, so the map and the
+ * nav can't disagree. An empty list means nothing is confirmed for that
+ * company yet; BranchLocator says so rather than showing a blank.
  */
 
-import { servicesForRegion, slugify, LOCATION_DETAILS, type RegionId } from "./navigation";
+import { slugify, LOCATION_DETAILS } from "./navigation";
+import { companyByName, confirmedServices } from "./services";
+import { contactFor, telHref, type ContactLine } from "./regionalContacts";
 
 export type Country = "US" | "CA";
 
@@ -32,9 +35,10 @@ export type Branch = Seed & {
   /** Capabilities this branch's operating company actually offers. */
   services: string[];
   /** Real per-branch line where navigation.ts's LOCATION_DETAILS has one
-   *  (currently the 16 TNT Crane & Rigging branches); a DUMMY placeholder
-   *  otherwise — see DUMMY PHONE NUMBERS below. */
-  phone: { display: string; href: string };
+   *  (currently the 16 TNT Crane & Rigging branches); otherwise the operating
+   *  company's published regional line — see REGIONAL FALLBACK below.
+   *  `source` says which, so a UI can label a regional line honestly. */
+  phone: { display: string; href: string; source: "branch" | "regional" };
   /** Full street address + zip, real data from navigation.ts's
    *  LOCATION_DETAILS. Undefined where no real address exists yet (every
    *  branch outside TNT Crane & Rigging) — omit the address in the UI
@@ -43,48 +47,48 @@ export type Branch = Seed & {
 };
 
 /**
- * Capability scope by operating company. TNT-operated branches carry the full
- * scope (null = unrestricted); the acquired brands inherit their region's set.
+ * REGIONAL FALLBACK (2026-10-08, approved — replaces the "555-555-01XX"
+ * DUMMY PHONE NUMBERS added 2026-09-23). Those placeholders were rendering on
+ * the homepage map as if they were real branch lines. A branch with no
+ * per-branch number on file now shows its operating company's real,
+ * published line from regionalContacts.ts, flagged `source: "regional"`.
+ *
+ * TNT Crane & Rigging Canada publishes three regional lines rather than one,
+ * so its branches pick the line for their area (the Contact Us brief's own
+ * split: Edmonton / Fort McMurray, Calgary, Southern Alberta).
+ *
+ * REPLACE with real per-branch numbers from the TNT team when they arrive —
+ * add them to LOCATION_DETAILS (navigation.ts) or a per-branch field here.
  */
-const BRAND_REGION: Record<string, RegionId | null> = {
-  "TNT Crane & Rigging": null,
-  "TNT Canada": "western-canada",
-  "RMS Cranes": "rocky-mountain",
-  "JMS Crane & Rigging": "northern-rockies",
-  "Southway Crane & Rigging": "southeast",
-  "Allison Crane & Rigging": "northeast-permian",
-  "Eagle West Cranes": "western-canada",
+const ALBERTA_LINE: Record<string, string> = {
+  edm: "Edmonton / Fort McMurray",
+  fmm: "Edmonton / Fort McMurray",
+  cal: "Calgary",
+  brk: "Southern Alberta",
+  let: "Southern Alberta",
+  mh: "Southern Alberta",
 };
 
-/**
- * DUMMY PHONE NUMBERS — FALLBACK ONLY (2026-09-23, on request — "each
- * location has an individual contact number... use dummy for now, we'll
- * collect the real ones from the TNT team later"). Every branch had been
- * sharing its BRAND's one real dispatch number (ContactSection.tsx's
- * Regional Dispatch list) — accurate but not per-LOCATION, which is what
- * was asked for.
- *
- * NARROWED TO A FALLBACK (2026-09-29): real per-branch numbers turned up in
- * navigation.ts's LOCATION_DETAILS (added for the Services location picker)
- * for the 16 TNT Crane & Rigging branches — buildBranchLocator() below uses
- * those directly now. This generator only fires for the other 28 branches,
- * which still have no real number on file.
- *
- * These are UNMISTAKABLY placeholders, not real numbers: "555-555-01XX"
- * doubles up on the NANP's own reserved fictional exchange (555-0100–
- * 555-0199 is set aside across North America for exactly this — movies,
- * mockups, etc. — so it can never collide with a real assigned number), one
- * per branch by its position in SEEDS below.
- *
- * REPLACE WITH REAL PER-BRANCH NUMBERS FROM THE TNT TEAM before this ships —
- * search the codebase for "555-555-01" to find every spot that needs one.
- */
-function dummyPhone(index: number): { display: string; href: string } {
-  const n = String(index).padStart(2, "0"); // 01 → 44, one per branch below
-  return { display: `(555) 555-01${n}`, href: `tel:+155555501${n}` };
+function regionalPhone(b: Seed): ContactLine {
+  const phones = contactFor(b.brand)?.phones ?? [];
+  const wanted = ALBERTA_LINE[b.id];
+  const hit = (wanted && phones.find((p) => p.label === wanted)) || phones[0];
+  // Every brand in SEEDS has an entry in REGIONAL_CONTACTS; the main TNT line
+  // is only a guard against a future brand being added without one.
+  return hit ?? { display: "1-800-799-2505", href: telHref("1-800-799-2505") };
 }
 
-// All 44 branches across the TNT family of brands
+// All 47 branches across the TNT family of brands.
+//
+// 2026-10-08 data corrections (approved, from the Contact Us audit against
+// each company's own site — see aboutData.ts's sources):
+//   - "hen" was a second "Denver, CO"; RMS lists Henderson, CO (the coords
+//     were already Henderson's), so it's relabelled rather than removed.
+//   - Added JMS Sioux Falls, and Eagle West Vancouver + Kelowna. These three
+//     sit at CITY-CENTRE coordinates — no street address is published yet,
+//     so no address/ZIP is stored for them.
+//   - Brand names aligned with the About page: "TNT Canada" → "TNT Crane &
+//     Rigging Canada", "Eagle West Cranes" → "Eagle West Crane & Rigging".
 const SEEDS: Seed[] = [
   // TNT Crane & Rigging (16)
   { id: "aus", city: "Austin, TX", state: "Texas", region: "Central Texas", brand: "TNT Crane & Rigging", country: "US", lat: 30.1935, lng: -97.665 },
@@ -110,7 +114,7 @@ const SEEDS: Seed[] = [
   { id: "cos", city: "Colorado Springs, CO", state: "Colorado", region: "Southern Colorado", brand: "RMS Cranes", country: "US", lat: 38.8838, lng: -104.8095 },
   { id: "den", city: "Denver, CO", state: "Colorado", region: "Front Range", brand: "RMS Cranes", country: "US", lat: 39.8129, lng: -104.7733 },
   { id: "win", city: "Windsor, CO", state: "Colorado", region: "Northern Colorado", brand: "RMS Cranes", country: "US", lat: 40.4743, lng: -104.8812 },
-  { id: "hen", city: "Denver, CO", state: "Colorado", region: "Front Range", brand: "RMS Cranes", country: "US", lat: 39.9205, lng: -104.8658 },
+  { id: "hen", city: "Henderson, CO", state: "Colorado", region: "Front Range", brand: "RMS Cranes", country: "US", lat: 39.9205, lng: -104.8658 },
 
   // Southway Crane & Rigging (12)
   { id: "alb", city: "Albany, GA", state: "Georgia", region: "Southwest Georgia", brand: "Southway Crane & Rigging", country: "US", lat: 31.5913, lng: -84.1328 },
@@ -126,21 +130,24 @@ const SEEDS: Seed[] = [
   { id: "mdw", city: "Midway, FL", state: "Florida", region: "Big Bend Florida", brand: "Southway Crane & Rigging", country: "US", lat: 30.4938, lng: -84.4263 },
   { id: "val", city: "Valdosta, GA", state: "Georgia", region: "South Georgia", brand: "Southway Crane & Rigging", country: "US", lat: 30.8096, lng: -83.2712 },
 
-  // JMS Crane & Rigging (1)
+  // JMS Crane & Rigging (2)
   { id: "bil", city: "Billings, MT", state: "Montana", region: "Southern Montana", brand: "JMS Crane & Rigging", country: "US", lat: 45.7436, lng: -108.5624 },
+  { id: "sfx", city: "Sioux Falls, SD", state: "South Dakota", region: "Eastern South Dakota", brand: "JMS Crane & Rigging", country: "US", lat: 43.5446, lng: -96.7311 },
 
-  // TNT Canada (6)
-  { id: "brk", city: "Brooks, AB", state: "Alberta", region: "Southern Alberta", brand: "TNT Canada", country: "CA", lat: 50.5589, lng: -111.8928 },
-  { id: "cal", city: "Calgary, AB", state: "Alberta", region: "Southern Alberta", brand: "TNT Canada", country: "CA", lat: 51.3699, lng: -114.0142 },
-  { id: "edm", city: "Edmonton, AB", state: "Alberta", region: "Central Alberta", brand: "TNT Canada", country: "CA", lat: 53.2608, lng: -113.5512 },
-  { id: "fmm", city: "Fort McMurray, AB", state: "Alberta", region: "Northern Alberta", brand: "TNT Canada", country: "CA", lat: 56.6761, lng: -111.353 },
-  { id: "let", city: "Lethbridge, AB", state: "Alberta", region: "Southern Alberta", brand: "TNT Canada", country: "CA", lat: 49.7373, lng: -112.789 },
-  { id: "mh", city: "Medicine Hat, AB", state: "Alberta", region: "Southern Alberta", brand: "TNT Canada", country: "CA", lat: 50.0803, lng: -110.7618 },
+  // TNT Crane & Rigging Canada (6)
+  { id: "brk", city: "Brooks, AB", state: "Alberta", region: "Southern Alberta", brand: "TNT Crane & Rigging Canada", country: "CA", lat: 50.5589, lng: -111.8928 },
+  { id: "cal", city: "Calgary, AB", state: "Alberta", region: "Southern Alberta", brand: "TNT Crane & Rigging Canada", country: "CA", lat: 51.3699, lng: -114.0142 },
+  { id: "edm", city: "Edmonton, AB", state: "Alberta", region: "Central Alberta", brand: "TNT Crane & Rigging Canada", country: "CA", lat: 53.2608, lng: -113.5512 },
+  { id: "fmm", city: "Fort McMurray, AB", state: "Alberta", region: "Northern Alberta", brand: "TNT Crane & Rigging Canada", country: "CA", lat: 56.6761, lng: -111.353 },
+  { id: "let", city: "Lethbridge, AB", state: "Alberta", region: "Southern Alberta", brand: "TNT Crane & Rigging Canada", country: "CA", lat: 49.7373, lng: -112.789 },
+  { id: "mh", city: "Medicine Hat, AB", state: "Alberta", region: "Southern Alberta", brand: "TNT Crane & Rigging Canada", country: "CA", lat: 50.0803, lng: -110.7618 },
 
-  // Eagle West Cranes (3)
-  { id: "abb", city: "Abbotsford, BC", state: "British Columbia", region: "Fraser Valley", brand: "Eagle West Cranes", country: "CA", lat: 49.0399, lng: -122.3575 },
-  { id: "chi", city: "Chilliwack, BC", state: "British Columbia", region: "Fraser Valley", brand: "Eagle West Cranes", country: "CA", lat: 49.0645, lng: -122.0376 },
-  { id: "kam", city: "Kamloops, BC", state: "British Columbia", region: "Southern Interior BC", brand: "Eagle West Cranes", country: "CA", lat: 50.6575, lng: -120.1097 },
+  // Eagle West Crane & Rigging (5)
+  { id: "abb", city: "Abbotsford, BC", state: "British Columbia", region: "Fraser Valley", brand: "Eagle West Crane & Rigging", country: "CA", lat: 49.0399, lng: -122.3575 },
+  { id: "chi", city: "Chilliwack, BC", state: "British Columbia", region: "Fraser Valley", brand: "Eagle West Crane & Rigging", country: "CA", lat: 49.0645, lng: -122.0376 },
+  { id: "kam", city: "Kamloops, BC", state: "British Columbia", region: "Southern Interior BC", brand: "Eagle West Crane & Rigging", country: "CA", lat: 50.6575, lng: -120.1097 },
+  { id: "van", city: "Vancouver, BC", state: "British Columbia", region: "Lower Mainland", brand: "Eagle West Crane & Rigging", country: "CA", lat: 49.2827, lng: -123.1207 },
+  { id: "kel", city: "Kelowna, BC", state: "British Columbia", region: "Okanagan", brand: "Eagle West Crane & Rigging", country: "CA", lat: 49.888, lng: -119.496 },
 ];
 
 export type BranchLocatorData = {
@@ -149,17 +156,20 @@ export type BranchLocatorData = {
 
 export function buildBranchLocator(): BranchLocatorData {
   return {
-    branches: SEEDS.map((b, i) => {
+    branches: SEEDS.map((b) => {
       // slugify(b.city) matches LOCATION_DETAILS's own keys exactly — both
       // are built from "City, ST" strings the same way (e.g. "Houston, TX"
       // → "houston-tx").
       const details = LOCATION_DETAILS[slugify(b.city)];
       return {
         ...b,
-        services: servicesForRegion(BRAND_REGION[b.brand] ?? null),
+        services: (() => {
+          const c = companyByName(b.brand);
+          return c ? confirmedServices(c.id).map((x) => x.label) : [];
+        })(),
         phone: details
-          ? { display: details.phone, href: `tel:+${details.phone.replace(/\D/g, "")}` }
-          : dummyPhone(i + 1),
+          ? { display: details.phone, href: telHref(details.phone), source: "branch" }
+          : { ...regionalPhone(b), source: "regional" },
         address: details ? { street: details.address, zip: details.zip } : undefined,
       };
     }),

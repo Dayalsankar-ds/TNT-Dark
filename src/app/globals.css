@@ -414,3 +414,18 @@ html {
 .lenis.lenis-stopped {
   overflow: hidden;
 }
+
+/* About page (/about) panel entrance — Timeline.tsx's chapter panel and
+   CapabilityExplorer.tsx's detail. Own keyframe name, same convention as
+   story-fade-up above, so the About page never couples to a homepage
+   animation. Applied via `motion-safe:`, so reduced motion gets none. */
+@keyframes about-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
